@@ -31,6 +31,10 @@ class GraphOfOperations:
             if all(predecessor.node_state == NodeState.DONE for predecessor in self._graph.predecessors(node)):
                 if node.node_state == NodeState.WAITING:
                     node.node_state = NodeState.PROCESSABLE
+    
+    @property
+    def all_scheduled(self) -> bool:
+        return all(not node.node_state.not_yet_scheduled for node in self._graph.nodes)
 
     def add_node(self, node: "AbstractOperation", start_node: bool = False, end_node: bool = False):
         self._graph.add_node(node)
@@ -84,14 +88,29 @@ class GraphOfOperations:
     def view_graph(self, save_path: str = None, show_output_reasoning_states: bool = False):
         # Create labels for nodes based on their NodeState
         if show_output_reasoning_states:
-            labels = {node: f"{node.name}\n{node.node_state}\n{node.output_reasoning_states}" for node in self._graph.nodes}
+            node_labels = {node: f"{node.name}\n{node.node_state}\n{node.output_reasoning_states}" for node in self._graph.nodes}
         else:
-            labels = {node: f"{node.name}\n{node.node_state}" for node in self._graph.nodes}
+            node_labels = {node: f"{node.name}\n{node.node_state}" for node in self._graph.nodes}
         
-        # Draw the graph with the labels
-        nx.draw(self._graph, labels=labels, with_labels=True)
+        # Create labels for edges based on the 'value' field in edge data
+        edge_labels = {
+            (u, v): data.get("value", "") for u, v, data in self._graph.edges(data=True)
+        }
+        
+        # Use a layout that encourages edges to point to the right
+        pos = nx.shell_layout(self._graph)  # Shell layout often aligns nodes circularly, but edges can point outward
+        
+        # Draw the graph with the node labels
+        nx.draw(self._graph, pos, labels=node_labels, with_labels=True, node_size=3000, font_size=10)
+        
+        # Draw the edge labels (only 'value') with adjusted positioning
+        nx.draw_networkx_edge_labels(
+            self._graph, pos, edge_labels=edge_labels, font_size=8, label_pos=0.5
+        )
+        
+        # Save or show the graph
         if save_path:
-            plt.savefig(save_path)
+            plt.savefig(save_path, bbox_inches="tight")  # Ensure labels fit within the saved image
         else:
             plt.show()
         plt.close()
