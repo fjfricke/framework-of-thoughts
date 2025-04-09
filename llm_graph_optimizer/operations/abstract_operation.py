@@ -24,9 +24,6 @@ class AbstractOperation(ABC):
         pass
 
     async def execute(self, graph: GraphOfOperations) -> None:
-
-        if not self.node_state == NodeState.PROCESSABLE:
-            raise RuntimeError(f"Node {self} is not in the PROCESSABLE state")
         
         input_reasoning_states = graph.get_input_reasoning_states(self)
         
@@ -40,22 +37,17 @@ class AbstractOperation(ABC):
             if not isinstance(input_reasoning_states[key], expected_type):
                 raise TypeError(f"Input '{key}' must be of type {expected_type}, got {type(input_reasoning_states[key])}")
 
-        self.node_state = NodeState.PROCESSING
-        try:
-            result = await self._execute(graph.partitions, input_reasoning_states)
+        result = await self._execute(graph.partitions, input_reasoning_states)
 
-            # Validate result
-            if not isinstance(result, dict):
-                raise TypeError(f"Outputs must be a dictionary, got {type(result)}")
-            
-            for key, expected_type in self.output_types.items():
-                if key not in result:
-                    raise KeyError(f"Missing output key: {key}")
-                if not isinstance(result[key], expected_type):
-                    raise TypeError(f"Output '{key}' must be of type {expected_type}, got {type(result[key])}")
+        # Validate result
+        if not isinstance(result, dict):
+            raise TypeError(f"Outputs must be a dictionary, got {type(result)}")
+        
+        for key, expected_type in self.output_types.items():
+            if key not in result:
+                raise KeyError(f"Missing output key: {key}")
+            if not isinstance(result[key], expected_type):
+                raise TypeError(f"Output '{key}' must be of type {expected_type}, got {type(result[key])}")
 
-            self.node_state = NodeState.DONE
-            self.output_reasoning_states = result
-            graph.update_edge_values(self, result)
-        except OperationFailed:
-            self.node_state = NodeState.FAILED
+        self.output_reasoning_states = result
+        graph.update_edge_values(self, result)

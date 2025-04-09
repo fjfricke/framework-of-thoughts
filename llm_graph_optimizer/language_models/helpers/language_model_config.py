@@ -7,6 +7,6 @@ class Config:
     """
     Configuration for the OpenAIChat model.
     """
-    temperature: float
+    temperature: float = None
     max_tokens: int = None
     stop: Union[str, list[str]] = None

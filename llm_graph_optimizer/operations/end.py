@@ -1,17 +1,13 @@
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphPartitions
 from .abstract_operation import AbstractOperation
 
-class Start(AbstractOperation):
+class End(AbstractOperation):
     """
-    Start operation.
+    End operation.
     """
 
     def __init__(self, input_types: dict[str, type] = None):
         super().__init__(input_types, input_types)
-        self.input_reasoning_states = None
-
-    def set_input_reasoning_states(self, input_reasoning_states: dict[str, any]):
-        self.input_reasoning_states = input_reasoning_states
 
     async def _execute(self, partitions: GraphPartitions, input_reasoning_states: dict[str, any]) -> dict[str, any]:
         return input_reasoning_states

@@ -8,6 +8,7 @@ class AbstractLanguageModel(ABC):
     Abstract base class that defines the interface for all language models.
     """
 
+    @abstractmethod
     def __init__(self, config: Config):
         # Initialize the cache as an empty dictionary
         self._cache = {}
