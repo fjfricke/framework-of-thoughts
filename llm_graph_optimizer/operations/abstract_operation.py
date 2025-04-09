@@ -11,13 +11,14 @@ class AbstractOperation(ABC):
     Abstract base class for all graph operations.
     """
 
-    def __init__(self, input_types: dict[str, type], output_types: dict[str, type], params: dict = None):
+    def __init__(self, input_types: dict[str, type], output_types: dict[str, type], params: dict = None, name: str = None):
         self.params = params
         self.cache = {}
         self.node_state = NodeState.WAITING
         self.input_types = input_types
         self.output_types = output_types
         self.output_reasoning_states = {}
+        self.name = name or self.__class__.__name__
 
     @abstractmethod
     async def _execute(self, partitions: GraphPartitions, input_reasoning_states: dict[str, any]) -> dict[str, any]:

@@ -1,4 +1,3 @@
-import os
 import asyncio
 
 from llm_graph_optimizer.controller.controller import Controller
@@ -9,17 +8,19 @@ from llm_graph_optimizer.operations.llm_operation import LLMOperation
 from llm_graph_optimizer.operations.start import Start
 from llm_graph_optimizer.schedulers.schedulers import Scheduler
 
-def prompter(x):
-    return f'Answer the following question: {x["input"]}'
-def parser(x):
-    return {"output": x}
+# Initialize the language model
+llm = OpenAIChat(model="gpt-4o")
 
-llm = OpenAIChat(model="gpt-4o", api_key=os.getenv("OPENAI_API_KEY"))
-
+# Initialize the start node
 start_node = Start(
     input_types={"start": str}
 )
 
+# Initialize the LLM operation and node
+def prompter(x):
+    return f'Answer the following question: {x["input"]}'
+def parser(x):
+    return {"output": x}
 llm_op = LLMOperation(
     llm=llm,
     prompter=prompter,
@@ -28,25 +29,37 @@ llm_op = LLMOperation(
     output_types={"output": str},
 )
 
+# Initialize the end node
 end_node = End(
     input_types={"end": str}
 )
+
+# Initialize the graph
 graph = GraphOfOperations()
+
+# Add the nodes to the graph
 graph.add_node(start_node)
 graph.add_node(llm_op)
 graph.add_node(end_node)
+
+# Add the edges to the graph
 graph.add_edge(start_node, llm_op, from_node_key="start", to_node_key="input")
 graph.add_edge(llm_op, end_node, from_node_key="output", to_node_key="end")
 
+# Set the start and end nodes
 graph.start_node = start_node
 graph.end_node = end_node
 
+# Initialize the scheduler
 scheduler = Scheduler.BFS
+
+# Initialize the controller
 controller = Controller(graph, scheduler, max_concurrent=3)
 
+# Run the controller
 async def run_controller():
     answer = await controller.execute(input={"start": "Hello, world!"})
     print(answer)
-    
+    graph.view_graph()
 
 asyncio.run(run_controller())

@@ -81,13 +81,19 @@ class GraphOfOperations:
                 input_reasoning_states[to_node_key] = value
         return input_reasoning_states
     
-    def view_graph(self):
+    def view_graph(self, save_path: str = None, show_output_reasoning_states: bool = False):
         # Create labels for nodes based on their NodeState
-        labels = {node: f"{node}\n{node.node_state}" for node in self._graph.nodes}
+        if show_output_reasoning_states:
+            labels = {node: f"{node.name}\n{node.node_state}\n{node.output_reasoning_states}" for node in self._graph.nodes}
+        else:
+            labels = {node: f"{node.name}\n{node.node_state}" for node in self._graph.nodes}
         
         # Draw the graph with the labels
         nx.draw(self._graph, labels=labels, with_labels=True)
-        plt.savefig("graph.png")
+        if save_path:
+            plt.savefig(save_path)
+        else:
+            plt.show()
         plt.close()
     
     @property
