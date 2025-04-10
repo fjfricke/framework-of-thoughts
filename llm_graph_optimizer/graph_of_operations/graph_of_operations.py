@@ -15,9 +15,9 @@ class GraphOfOperations:
 
     def __init__(self, graph: nx.MultiDiGraph = None):
         self._graph = graph if graph else nx.MultiDiGraph()
-
-    # def deepcopy(self) -> "GraphOfOperations":
-    #     copied_graph = copy.deepcopy(self._graph)
+    
+    def __deepcopy__(self, memo):
+        return GraphOfOperations(copy.deepcopy(self._graph))
 
     @property
     def digraph(self) -> nx.DiGraph:
@@ -42,12 +42,8 @@ class GraphOfOperations:
     def all_processed(self) -> bool:
         return all(node.node_state.is_finished for node in self._graph.nodes)
 
-    def add_node(self, node: "AbstractOperation", start_node: bool = False, end_node: bool = False):
+    def add_node(self, node: "AbstractOperation"):
         self._graph.add_node(node)
-        if start_node:
-            self.start_node = node
-        if end_node:
-            self.end_node = node
 
     def add_edge(self, from_node: "AbstractOperation", to_node: "AbstractOperation", from_node_key: str, to_node_key: str):
         if from_node not in self._graph:
