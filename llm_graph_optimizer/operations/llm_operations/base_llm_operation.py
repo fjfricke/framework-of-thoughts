@@ -11,7 +11,7 @@ class BaseLLMOperation(AbstractOperation):
     LLM operation.
     """
 
-    def __init__(self, llm: AbstractLanguageModel, prompter: Callable[..., str], parser: Callable[[str], dict[str, any]], params: dict = None, input_types: dict[str, type] = None, output_types: dict[str, type] = None):
+    def __init__(self, llm: AbstractLanguageModel, prompter: Callable[..., str], parser: Callable[[str], dict[str, any]], use_cache: bool = True, params: dict = None, input_types: dict[str, type] = None, output_types: dict[str, type] = None):
         """
         Initialize the BaseLLMOperation.
 
@@ -25,6 +25,7 @@ class BaseLLMOperation(AbstractOperation):
         self.llm = llm
         self.prompter = prompter
         self.parser = parser
+        self.use_cache = use_cache
         super().__init__(input_types=input_types, output_types=output_types, params=params)
 
     async def _execute(self, partitions: GraphPartitions, input_reasoning_states: dict[str, any]) -> dict[str, any]:
@@ -33,7 +34,7 @@ class BaseLLMOperation(AbstractOperation):
             prompt = self.prompter(**input_reasoning_states)
             
             # Query the language model
-            response, query_metadata = await self.llm.query(prompt)
+            response, query_metadata = await self.llm.query(prompt=prompt, use_cache=self.use_cache)
             
             # Pass the response to the parser
             return self.parser(response)

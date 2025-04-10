@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+import copy
+import logging
 
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations, GraphPartitions
 from .helpers.exceptions import OperationFailed
@@ -11,7 +13,7 @@ class AbstractOperation(ABC):
     Abstract base class for all graph operations.
     """
 
-    def __init__(self, input_types: dict[str, type], output_types: dict[str, type], params: dict = None, name: str = None):
+    def __init__(self, input_types: dict[str | int, type], output_types: dict[str | int, type], params: dict = None, name: str = None):
         self.params = params
         self.cache = {}
         self.node_state = NodeState.WAITING
@@ -20,8 +22,14 @@ class AbstractOperation(ABC):
         self.output_reasoning_states = {}
         self.name = name or self.__class__.__name__
 
+    def copy(self) -> "AbstractOperation":
+        new_op = copy.copy(self)  # Create a shallow copy
+        new_op.node_state = NodeState.WAITING
+        new_op.output_reasoning_states = {}
+        return new_op
+
     @abstractmethod
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: dict[str, any]) -> dict[str, any]:
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: dict[str | int, any]) -> dict[str | int, any]:
         pass
 
     async def execute(self, graph: GraphOfOperations) -> None:
@@ -67,4 +75,5 @@ class AbstractOperation(ABC):
                     raise TypeError(f"Elements of output '{key}' must be of type {element_type}")
 
         self.output_reasoning_states = result
+        logging.debug(f"Output reasoning states: {self.output_reasoning_states} for operation {self.name}")
         graph.update_edge_values(self, result)

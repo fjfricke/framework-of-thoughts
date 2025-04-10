@@ -21,19 +21,20 @@ class AbstractLanguageModel(ABC):
         """
         pass
 
-    async def query(self, prompt: str) -> tuple[str, QueryMetadata]:
+    async def query(self, prompt: str, use_cache: bool = True) -> tuple[str, QueryMetadata]:
         """
         Query the language model with caching.
         """
         # Check if the prompt is in the cache
-        if prompt in self._cache:
+        if use_cache and prompt in self._cache:
             return self._cache[prompt]
 
         # If not in cache, query the language model
         response = await self._raw_query(prompt)
 
         # Store the result in the cache
-        self._cache[prompt] = response
+        if use_cache:
+            self._cache[prompt] = response
 
         return response
 

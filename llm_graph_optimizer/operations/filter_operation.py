@@ -1,0 +1,16 @@
+from typing import Callable
+
+from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartitions
+from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
+
+
+class FilterOperation(AbstractOperation):
+
+    def __init__(self, output_types: dict[str, type], length: int, filter_function: Callable[[list[dict[str, any]]], dict[str, any]], params: dict = None, name: str = None):
+        input_types = {i: dict[str, any] for i in range(length)}
+        self.filter_function = filter_function
+        super().__init__(input_types, output_types, params, name)
+
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: dict[int, dict[str, any]]) -> dict[str, any]:
+        input_reasoning_states_list = list(input_reasoning_states.values())
+        return self.filter_function(input_reasoning_states_list)

@@ -3,7 +3,6 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 from llm_graph_optimizer.operations.helpers.node_state import NodeState
-
 from .graph_partitions import GraphPartitions
 # from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
 
@@ -15,9 +14,6 @@ class GraphOfOperations:
 
     def __init__(self, graph: nx.MultiDiGraph = None):
         self._graph = graph if graph else nx.MultiDiGraph()
-    
-    def __deepcopy__(self, memo):
-        return GraphOfOperations(copy.deepcopy(self._graph))
 
     @property
     def digraph(self) -> nx.DiGraph:
@@ -45,7 +41,7 @@ class GraphOfOperations:
     def add_node(self, node: "AbstractOperation"):
         self._graph.add_node(node)
 
-    def add_edge(self, from_node: "AbstractOperation", to_node: "AbstractOperation", from_node_key: str, to_node_key: str):
+    def add_edge(self, from_node: "AbstractOperation", to_node: "AbstractOperation", from_node_key: str | int, to_node_key: str | int):
         if from_node not in self._graph:
             raise ValueError(f"Node {from_node} not found in graph")
         if to_node not in self._graph:
@@ -66,13 +62,13 @@ class GraphOfOperations:
             raise ValueError(f"One-to-many relationship violated: Multiple edges to {to_node} with to_node_key '{to_node_key}'")
         self._graph.add_edge(from_node, to_node, from_node_key=from_node_key, to_node_key=to_node_key)
     
-    def update_edge_values(self, from_node: "AbstractOperation", value: dict[str, any]):
+    def update_edge_values(self, from_node: "AbstractOperation", value: dict[str | int, any]):
         for edge in self._graph.edges(from_node, data=True):
             edge_data = edge[2]
             if edge_data["from_node_key"] in value:
                 edge_data["value"] = value[edge_data["from_node_key"]]
 
-    def get_input_reasoning_states(self, node: "AbstractOperation") -> dict[str, any]:
+    def get_input_reasoning_states(self, node: "AbstractOperation") -> dict[str | int, any]:
         if node == self.start_node:
             return node.input_reasoning_states
         predecessors = self._graph.predecessors(node)
@@ -81,13 +77,15 @@ class GraphOfOperations:
             if not predecessor.node_state.is_finished:
                 raise ValueError(f"Predecessor {predecessor} is not finished")
             edge_data = self._graph.get_edge_data(predecessor, node)
-            to_node_key = edge_data[0]["to_node_key"]
-            if to_node_key:
-                value = edge_data[0].get("value")
-                input_reasoning_states[to_node_key] = value
+            for edge in edge_data.values():
+                to_node_key = edge["to_node_key"]
+                if to_node_key is not None:
+                    value = edge.get("value")
+                    input_reasoning_states[to_node_key] = value
         return input_reasoning_states
     
-    def view_graph(self, save_path: str = None, show_output_reasoning_states: bool = False):
+    
+    def view_graph(self, save_path: str = None, show_output_reasoning_states: bool = False, show_keys: bool = False, show_values: bool = False, use_pyvis: bool = False):
         # Create labels for nodes based on their NodeState
         if show_output_reasoning_states:
             node_labels = {node: f"{node.name}\n{node.node_state}\n{node.output_reasoning_states}" for node in self._graph.nodes}
@@ -95,27 +93,65 @@ class GraphOfOperations:
             node_labels = {node: f"{node.name}\n{node.node_state}" for node in self._graph.nodes}
         
         # Create labels for edges based on the 'value' field in edge data
-        edge_labels = {
-            (u, v): data.get("value", "") for u, v, data in self._graph.edges(data=True)
-        }
+        if show_values:
+            edge_labels = {
+                (u, v): data.get("value", "") for u, v, data in self._graph.edges(data=True)
+            }
+        elif show_keys:
+            edge_labels = {
+                (u, v): f"{data.get('from_node_key', '')} -> {data.get('to_node_key', '')}" for u, v, data in self._graph.edges(data=True)
+            }
+
+        # Topological order
+        topo_order = list(nx.topological_sort(self._graph))
         
+        # Initialize all distances
+        dist = {node: float('-inf') for node in self._graph.nodes}
+        dist[self.start_node] = 0
+        
+        for u in topo_order:
+            for v in self._graph.successors(u):
+                if dist[v] < dist[u] + 1:
+                    dist[v] = dist[u] + 1
+
+        # Apply the subset attribute (layer index)
+        nx.set_node_attributes(self._graph, dist, "subset")
+
         # Use a layout that encourages edges to point to the right
-        pos = nx.shell_layout(self._graph)  # Shell layout often aligns nodes circularly, but edges can point outward
-        
+        pos = nx.multipartite_layout(self._graph, subset_key="subset", align="vertical")
+        # pos = nx.bfs_layout(self._graph, start=self.start_node)  # Shell layout often aligns nodes circularly, but edges can point outward
+
+        # # Draw the graph with the node labels
+        # pos = nx.arf_layout(self._graph)  # Shell layout often aligns nodes circularly, but edges can point outward
         # Draw the graph with the node labels
-        nx.draw(self._graph, pos, labels=node_labels, with_labels=True, node_size=3000, font_size=10)
-        
-        # Draw the edge labels (only 'value') with adjusted positioning
-        nx.draw_networkx_edge_labels(
-            self._graph, pos, edge_labels=edge_labels, font_size=8, label_pos=0.5
-        )
-        
-        # Save or show the graph
-        if save_path:
-            plt.savefig(save_path, bbox_inches="tight")  # Ensure labels fit within the saved image
+        if use_pyvis:
+            from pyvis.network import Network
+            nt = Network(height='750px', width='100%', directed=True)
+            mapping = {node: str(node) for node in self._graph.nodes}
+            G_copy = nx.relabel_nodes(self._graph, mapping, copy=True)
+            
+            # Add the 'title' attribute to the relabeled graph
+            for original_node, relabeled_node in mapping.items():
+                G_copy.nodes[relabeled_node]['label'] = original_node.name
+
+            
+            nt.from_nx(G_copy)
+            nt.show_buttons()
+            nt.show("nx.html", notebook=False)
         else:
-            plt.show()
-        plt.close()
+            nx.draw(self._graph, pos, labels=node_labels, with_labels=True, node_size=300, font_size=5)
+        
+            # Draw the edge labels (only 'value') with adjusted positioning
+            nx.draw_networkx_edge_labels(
+                self._graph, pos, edge_labels=edge_labels, font_size=8, label_pos=0.5
+            )
+            
+            # Save or show the graph
+            if save_path:
+                plt.savefig(save_path, bbox_inches="tight")  # Ensure labels fit within the saved image
+            else:
+                plt.show()
+            plt.close()
     
     @property
     def partitions(self) -> GraphPartitions:

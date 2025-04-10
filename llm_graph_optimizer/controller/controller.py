@@ -6,9 +6,6 @@ from llm_graph_optimizer.operations.helpers.exceptions import OperationFailed
 from llm_graph_optimizer.operations.helpers.node_state import NodeState
 import logging
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-
 class Controller:
     def __init__(self, graph_of_operations: GraphOfOperations, scheduler: Callable[[GraphOfOperations], list[AbstractOperation]], max_concurrent: int = 3):
         self.graph_of_operations = graph_of_operations
@@ -53,15 +50,13 @@ class Controller:
                 except OperationFailed as e:
                     logging.error("Operation %s failed. Error: %s", operation.name, e)
                     operation.node_state = NodeState.FAILED
+                    raise e
                 finally:
                     operation_queue.task_done()
 
                 if self.graph_of_operations.all_processed:
                     logging.debug("All operations processed. Adding sentinel to stop other workers. Then exiting.")
                     await operation_queue.put(None)
-                    break
-                elif self.graph_of_operations.all_scheduled:
-                    logging.debug("All operations scheduled. Exiting worker loop.")
                     break
 
                 self.graph_of_operations.set_next_processable()
