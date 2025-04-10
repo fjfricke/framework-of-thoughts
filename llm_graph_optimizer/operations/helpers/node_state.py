@@ -17,4 +17,6 @@ class NodeState(Enum):
     def is_finished(self) -> bool:
         return self in [NodeState.DONE, NodeState.FAILED, NodeState.ABORTED, NodeState.EARLY_STOPPED]
 
-    
+    @property
+    def not_yet_scheduled(self) -> bool:
+        return self in [NodeState.WAITING, NodeState.PROCESSABLE]

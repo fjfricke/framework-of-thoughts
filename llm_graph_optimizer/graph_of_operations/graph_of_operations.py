@@ -1,3 +1,4 @@
+import copy
 import networkx as nx
 import matplotlib.pyplot as plt
 
@@ -12,10 +13,11 @@ class GraphOfOperations:
     Graph of operations.
     """
 
-    def __init__(self, graph: nx.MultiDiGraph = None, start_node: "AbstractOperation" = None, end_node: "AbstractOperation" = None):
+    def __init__(self, graph: nx.MultiDiGraph = None):
         self._graph = graph if graph else nx.MultiDiGraph()
-        self.start_node = start_node if graph else None
-        self.end_node = end_node if graph else None
+
+    # def deepcopy(self) -> "GraphOfOperations":
+    #     copied_graph = copy.deepcopy(self._graph)
 
     @property
     def digraph(self) -> nx.DiGraph:
@@ -35,6 +37,10 @@ class GraphOfOperations:
     @property
     def all_scheduled(self) -> bool:
         return all(not node.node_state.not_yet_scheduled for node in self._graph.nodes)
+    
+    @property
+    def all_processed(self) -> bool:
+        return all(node.node_state.is_finished for node in self._graph.nodes)
 
     def add_node(self, node: "AbstractOperation", start_node: bool = False, end_node: bool = False):
         self._graph.add_node(node)
@@ -142,10 +148,30 @@ class GraphOfOperations:
             exclusive_descendant_nodes[node] = node_descendants - non_descendant_descendants
 
         return GraphPartitions(
-            predecessors=GraphOfOperations(self._graph.subgraph(predecessors_nodes).copy(), start_node=self.start_node, end_node=self.end_node),
-            descendants=GraphOfOperations(self._graph.subgraph(descendants_nodes).copy(), start_node=self.start_node, end_node=self.end_node),
-            exclusive_descendants=GraphOfOperations(self._graph.subgraph(exclusive_descendant_nodes).copy(), start_node=self.start_node, end_node=self.end_node)
+            predecessors=GraphOfOperations(self._graph.subgraph(predecessors_nodes).copy()),
+            descendants=GraphOfOperations(self._graph.subgraph(descendants_nodes).copy()),
+            exclusive_descendants=GraphOfOperations(self._graph.subgraph(exclusive_descendant_nodes).copy())
             )
+
+    @property
+    def start_node(self) -> "AbstractOperation":
+        # Retrieve the start node from the graph attributes
+        if 'start_node' not in self._graph.graph:
+            start_nodes = [node for node in self._graph.nodes if self._graph.in_degree(node) == 0]
+            if len(start_nodes) != 1:
+                raise ValueError("Graph must have exactly one start node with in-degree 0")
+            self._graph.graph['start_node'] = start_nodes[0]  # Store as graph attribute
+        return self._graph.graph['start_node']
+
+    @property
+    def end_node(self) -> "AbstractOperation":
+        # Retrieve the end node from the graph attributes
+        if 'end_node' not in self._graph.graph:
+            end_nodes = [node for node in self._graph.nodes if self._graph.out_degree(node) == 0]
+            if len(end_nodes) != 1:
+                raise ValueError("Graph must have exactly one end node with out-degree 0")
+            self._graph.graph['end_node'] = end_nodes[0]  # Store as graph attribute
+        return self._graph.graph['end_node']
 
 
 
