@@ -1,10 +1,11 @@
-import copy
+from typing import TYPE_CHECKING
 import networkx as nx
 import matplotlib.pyplot as plt
 
 from llm_graph_optimizer.operations.helpers.node_state import NodeState
 from .graph_partitions import GraphPartitions
-# from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
+if TYPE_CHECKING:
+    from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
 
 
 class GraphOfOperations:
@@ -170,31 +171,18 @@ class GraphOfOperations:
                 plt.show()
             plt.close()
     
-    @property
-    def partitions(self) -> GraphPartitions:
-        return None #TODO: fix
+    def partitions(self, node: "AbstractOperation") -> GraphPartitions:
         all_nodes = set(self._graph.nodes)
 
         # Compute predecessors and descendants
-        predecessors_nodes = nx.ancestors(self._graph, self._graph.nodes)
-        descendants_nodes = nx.descendants(self._graph, self._graph.nodes)
+        predecessors_nodes = nx.ancestors(self._graph, node) | {node}
+        descendants_nodes = nx.descendants(self._graph, node) | {node}
 
-        # Compute exclusive descendants
-        exclusive_descendant_nodes = {}
-        for node in all_nodes:
-            # Get descendants of the current node
-            node_descendants = nx.descendants(self._graph, node)
-
-            # Get non-descendant nodes
-            non_descendant_nodes = all_nodes - node_descendants - {node}
-
-            # Get descendants of non-descendant nodes
-            non_descendant_descendants = set()
-            for non_descendant in non_descendant_nodes:
-                non_descendant_descendants.update(nx.descendants(self._graph, non_descendant))
-
-            # Filter exclusive descendants
-            exclusive_descendant_nodes[node] = node_descendants - non_descendant_descendants
+        unconnected_nodes = all_nodes - predecessors_nodes - descendants_nodes - {node}
+        unconnected_descendant_nodes = set()
+        for unconnected_node in unconnected_nodes:
+            unconnected_descendant_nodes.update(nx.descendants(self._graph, unconnected_node))
+        exclusive_descendant_nodes = descendants_nodes - unconnected_descendant_nodes | {node}
 
         return GraphPartitions(
             predecessors=GraphOfOperations(self._graph.subgraph(predecessors_nodes).copy()),

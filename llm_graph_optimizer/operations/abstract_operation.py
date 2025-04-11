@@ -54,7 +54,8 @@ class AbstractOperation(ABC):
                 if not all(isinstance(item, element_type) for item in input_reasoning_states[key]):
                     raise TypeError(f"Elements of input '{key}' must be of type {element_type}")
 
-        result = await self._execute(graph.partitions, input_reasoning_states)
+        partitions = graph.partitions(self)
+        result = await self._execute(partitions, input_reasoning_states)
 
         # Validate result
         if not isinstance(result, dict):
