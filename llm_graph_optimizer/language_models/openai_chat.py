@@ -66,3 +66,33 @@ class OpenAIChat(AbstractLanguageModel):
 
         # Calculate pricing
         return response.choices[0].message.content, metadata
+
+    @backoff.on_exception(backoff.expo, OpenAIError, max_time=10, max_tries=6)
+    async def _raw_query_with_logprobs(self, prompt: str) -> tuple[list[str, float], QueryMetadata]:
+        """
+        Query the OpenAI Legacy Completions API and return metadata.
+
+        :param prompt: The input prompt for the model.
+        """
+        response = await self.client.completions.create(
+            model=self.model,
+            prompt=prompt,
+            logprobs=1,
+            temperature=self._config.temperature,
+            max_tokens=self._config.max_tokens,
+            stop=self._config.stop
+        )
+
+        output_with_logprobs = list(zip(response.choices[0].logprobs.tokens, response.choices[0].logprobs.token_logprobs))
+        return output_with_logprobs, QueryMetadata(
+            request_tokens=response.usage.prompt_tokens,
+            response_tokens=response.usage.completion_tokens,
+            request_price_per_token=self.request_price_per_token,
+            response_price_per_token=self.response_price_per_token
+        )
+
+
+if __name__ == "__main__":
+    import asyncio
+    openai_chat = OpenAIChat(model="gpt-3.5-turbo-instruct", config=Config(temperature=1.0, max_tokens=256))
+    print(asyncio.run(openai_chat.query_with_logprobs("Hello, world!")))

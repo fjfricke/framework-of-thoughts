@@ -12,12 +12,20 @@ class AbstractLanguageModel(ABC):
     def __init__(self, config: Config):
         # Initialize the cache as an empty dictionary
         self._cache = {}
+        self._cache_with_logprobs = {}
         self._config = config
 
     @abstractmethod
     async def _raw_query(self, prompt: str) -> tuple[str, QueryMetadata]:
         """
         Query the language model with a prompt.
+        """
+        pass
+
+    @abstractmethod
+    async def _raw_query_with_logprobs(self, prompt: str) -> tuple[list[str, float], QueryMetadata]:
+        """
+        Query the language model with log probabilities.
         """
         pass
 
@@ -37,10 +45,27 @@ class AbstractLanguageModel(ABC):
             self._cache[prompt] = response
 
         return response
+    
+    async def query_with_logprobs(self, prompt: str, use_cache: bool = True) -> tuple[list[str, float], QueryMetadata]:
+        """
+        Query the language model with log probabilities.
+        """
+        # Check if the prompt is in the cache
+        if use_cache and prompt in self._cache_with_logprobs:
+            return self._cache_with_logprobs[prompt]
+
+        # If not in cache, query the language model
+        response = await self._raw_query_with_logprobs(prompt)
+
+        # Store the result in the cache
+        if use_cache:
+            self._cache_with_logprobs[prompt] = response
+
+        return response
 
     def reset_cache(self):
         """
         Reset the cache by clearing all stored queries.
         """
         self._cache.clear()
-
+        self._cache_with_logprobs.clear()
