@@ -127,14 +127,31 @@ class GraphOfOperations:
         if use_pyvis:
             from pyvis.network import Network
             nt = Network(height='750px', width='100%', directed=True)
+            
+            # Relabel nodes
             mapping = {node: str(node) for node in self._graph.nodes}
             G_copy = nx.relabel_nodes(self._graph, mapping, copy=True)
             
             # Add the 'title' attribute to the relabeled graph
             for original_node, relabeled_node in mapping.items():
                 G_copy.nodes[relabeled_node]['label'] = original_node.name
-
+                G_copy.nodes[relabeled_node]['title'] = original_node.name  # Add title for hover functionality
             
+            # Modify edge attributes in the relabeled graph
+            for u, v, data in G_copy.edges(data=True):
+                # Use the mapping to get the original nodes
+                original_u = next(key for key, value in mapping.items() if value == u)
+                original_v = next(key for key, value in mapping.items() if value == v)
+                
+                # Get subset values from the original graph
+                subset_u = self._graph.nodes[original_u].get("subset", 0)
+                subset_v = self._graph.nodes[original_v].get("subset", 0)
+                
+                # Calculate edge length based on subset difference
+                edge_length = abs(subset_u - subset_v)
+                data['length'] = edge_length ** 3 # Add the length parameter to the edge data
+            
+            # Convert the modified graph to pyvis
             nt.from_nx(G_copy)
             nt.show_buttons()
             nt.show("nx.html", notebook=False)
