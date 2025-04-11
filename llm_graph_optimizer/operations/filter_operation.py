@@ -5,6 +5,10 @@ from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
 
 
 class FilterOperation(AbstractOperation):
+    """
+    FilterOperation is a class that filters a list of reasoning states.
+    Input_types is a dictionary of an integer to a state. Nodes should connect to 0,1,.. input_keys
+    """
 
     def __init__(self, output_types: dict[str, type], length: int, filter_function: Callable[[list[dict[str, any]]], dict[str, any]], params: dict = None, name: str = None):
         input_types = {i: dict[str, any] for i in range(length)}

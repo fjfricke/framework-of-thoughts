@@ -74,16 +74,19 @@ class OpenAIChat(AbstractLanguageModel):
 
         :param prompt: The input prompt for the model.
         """
-        response = await self.client.completions.create(
+
+        messages = [{"role": "user", "content": prompt}]
+        
+        response = await self.client.chat.completions.create(
             model=self.model,
-            prompt=prompt,
-            logprobs=1,
+            messages=messages,
+            logprobs=True,
             temperature=self._config.temperature,
             max_tokens=self._config.max_tokens,
             stop=self._config.stop
         )
 
-        output_with_logprobs = list(zip(response.choices[0].logprobs.tokens, response.choices[0].logprobs.token_logprobs))
+        output_with_logprobs = [(content.token, content.logprob) for content in response.choices[0].logprobs.content]
         return output_with_logprobs, QueryMetadata(
             request_tokens=response.usage.prompt_tokens,
             response_tokens=response.usage.completion_tokens,
@@ -94,5 +97,5 @@ class OpenAIChat(AbstractLanguageModel):
 
 if __name__ == "__main__":
     import asyncio
-    openai_chat = OpenAIChat(model="gpt-3.5-turbo-instruct", config=Config(temperature=1.0, max_tokens=256))
+    openai_chat = OpenAIChat(model="gpt-4o", config=Config(temperature=1.0, max_tokens=256))
     print(asyncio.run(openai_chat.query_with_logprobs("Hello, world!")))
