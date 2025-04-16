@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import copy
 import logging
+from typing import Callable
 
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations, GraphPartitions
 from .helpers.exceptions import OperationFailed
@@ -78,3 +79,5 @@ class AbstractOperation(ABC):
         self.output_reasoning_states = result
         logging.debug(f"Output reasoning states: {self.output_reasoning_states} for operation {self.name}")
         graph.update_edge_values(self, result)
+
+AbstractOperationFactory = Callable[[], AbstractOperation]

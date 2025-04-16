@@ -6,12 +6,12 @@ from ..helpers.exceptions import OperationFailed
 from ..abstract_operation import AbstractOperation
 
 
-class BaseLLMOperation(AbstractOperation):
+class LLMOperationWithLogprobs(AbstractOperation):
     """
     LLM operation.
     """
 
-    def __init__(self, llm: AbstractLanguageModel, prompter: Callable[..., str], parser: Callable[[str], dict[str, any]], use_cache: bool = True, params: dict = None, input_types: dict[str, type] = None, output_types: dict[str, type] = None, name: str = None):
+    def __init__(self, llm: AbstractLanguageModel, prompter: Callable[..., str], parser: Callable[[list[tuple[str, float]]], dict[str, any]], use_cache: bool = True, params: dict = None, input_types: dict[str, type] = None, output_types: dict[str, type] = None, name: str = None):
         """
         Initialize the BaseLLMOperation.
 
@@ -34,7 +34,7 @@ class BaseLLMOperation(AbstractOperation):
             prompt = self.prompter(**input_reasoning_states)
             
             # Query the language model
-            response, query_metadata = await self.llm.query(prompt=prompt, use_cache=self.use_cache)
+            response, query_metadata = await self.llm.query_with_logprobs(prompt=prompt, use_cache=self.use_cache)
             
             # Pass the response to the parser
             return self.parser(response)

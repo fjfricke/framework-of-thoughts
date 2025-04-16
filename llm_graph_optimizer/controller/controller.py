@@ -41,7 +41,6 @@ class Controller:
                     operation_queue.task_done()
                     await operation_queue.put(None)
                     break
-
                 logging.debug("Processing operation: %s", operation.name)
                 try:
                     await operation.execute(self.graph_of_operations)
