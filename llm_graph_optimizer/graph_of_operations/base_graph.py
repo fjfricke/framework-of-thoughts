@@ -7,6 +7,8 @@ import json
 
 from pyvis.network import Network
 
+from llm_graph_optimizer.graph_of_operations.snapshot_graph import SnapshotGraph
+
 
 from .types import Dynamic, Edge, NodeKey, ManyToOne
 
@@ -25,6 +27,24 @@ class BaseGraph(ABC):
     @property
     def digraph(self) -> nx.DiGraph:
         return nx.DiGraph(self._graph)
+    
+    @property
+    def snapshot(self) -> SnapshotGraph:
+        # Relabel nodes to strings and remove all parameters
+        mapping = {node: str(node) for node in self._graph.nodes}
+        inverse_mapping = {v: k for k, v in mapping.items()}
+        G_copy: nx.MultiDiGraph = nx.relabel_nodes(self._graph, mapping, copy=True)
+
+        # Remove all attributes from nodes
+        for node in G_copy.nodes:
+            G_copy.nodes[node].clear()
+
+        # add back the node name and state
+        for node in G_copy.nodes:
+            G_copy.nodes[node]['label'] = inverse_mapping[node].name
+            G_copy.nodes[node]['state'] = inverse_mapping[node].node_state
+
+        return SnapshotGraph(G_copy)
 
     def _add_node(self, node: "AbstractOperation"):
         self._graph.add_node(node)
@@ -68,167 +88,6 @@ class BaseGraph(ABC):
             edge_data = edge[2]
             if edge_data["from_node_key"] in value:
                 edge_data["value"] = value[edge_data["from_node_key"]]
-
-    # def view_graph_ipysigma(self,
-    #                         show_output_reasoning_states=False,
-    #                         show_keys=False,
-    #                         show_values=False,
-    #                         output_name="debug_graph.html"):
-    #     import networkx as nx
-    #     from ipysigma import Sigma
-    #     import panel as pn
-
-    #     pn.extension('ipywidgets')
-
-    #     G = self._graph
-
-    #     # Create node labels
-    #     node_labels = {
-    #         node: f"{node.name}\n{node.node_state}" +
-    #             (f"\n{node.output_reasoning_states}" if show_output_reasoning_states else "")
-    #         for node in G.nodes
-    #     }
-
-    #     for node, label in node_labels.items():
-    #         G.nodes[node]["label"] = label
-
-    #     # Relabel to strings for Sigma
-    #     mapping = {node: str(node) for node in G.nodes}
-    #     G_copy = nx.relabel_nodes(G, mapping, copy=True)
-
-    #     for orig, str_id in mapping.items():
-    #         G_copy.nodes[str_id]["label"] = G.nodes[orig]["label"]
-
-    #     if show_values:
-    #         for u, v, data in G_copy.edges(data=True):
-    #             data["label"] = str(data.get("value", ""))
-    #     elif show_keys:
-    #         for u, v, data in G_copy.edges(data=True):
-    #             data["label"] = f"{data.get('from_node_key', '')} -> {data.get('to_node_key', '')}"
-
-    #     viewer = Sigma(G_copy)
-    #     pn.panel(viewer, sizing_mode="stretch_both", height=600).save(output_name, embed=True)
-    #     print(f"✅ Graph saved to {output_name}")
-    
-    # def view_graph(self, save_path: str = None, show_output_reasoning_states: bool = False, show_keys: bool = False, show_values: bool = False, use_pyvis: bool = False, edge_length_power: float = 3, output_name: str = "debug_graph.html"):
-    #     # Create labels for nodes based on their NodeState
-    #     if show_output_reasoning_states:
-    #         node_labels = {node: f"{node.name}\n{node.node_state}\n{node.output_reasoning_states}" for node in self._graph.nodes}
-    #     else:
-    #         node_labels = {node: f"{node.name}\n{node.node_state}" for node in self._graph.nodes}
-        
-    #     # Create labels for edges based on the 'value' field in edge data
-    #     if show_values:
-    #         edge_labels = {
-    #             (u, v): data.get("value", "") for u, v, data in self._graph.edges(data=True)
-    #         }
-    #     elif show_keys:
-    #         edge_labels = {
-    #             (u, v): f"{data.get('from_node_key', '')} -> {data.get('to_node_key', '')}" for u, v, data in self._graph.edges(data=True)
-    #         }
-
-    #     # Topological order
-    #     topo_order = list(nx.topological_sort(self._graph))
-        
-    #     # Initialize all distances
-    #     dist = {node: float('-inf') for node in self._graph.nodes}
-    #     dist[self.start_node] = 0
-        
-    #     for u in topo_order:
-    #         for v in self._graph.successors(u):
-    #             if dist[v] < dist[u] + 1:
-    #                 dist[v] = dist[u] + 1
-
-    #     # Apply the subset attribute (layer index)
-    #     nx.set_node_attributes(self._graph, dist, "subset")
-
-    #     # Use a layout that encourages edges to point to the right
-    #     pos = nx.multipartite_layout(self._graph, subset_key="subset", align="vertical")
-
-    #     # Set predefined positions for start and end nodes
-    #     if self.start_node in self._graph.nodes:
-    #         pos[self.start_node] = (-1, 0)  # Start node on the left
-    #     if self.end_node in self._graph.nodes:
-    #         pos[self.end_node] = (1, 0)  # End node on the right
-
-    #     # Adjust positions for other nodes
-    #     for node in pos:
-    #         if node != self.start_node and node != self.end_node:
-    #             pos[node] = (pos[node][0], pos[node][1])
-
-    #     # Draw the graph with the node labels
-    #     if use_pyvis:
-    #         nt = Network(height='750px', width='100%', directed=True)
-            
-    #         # Relabel nodes
-    #         mapping = {node: str(node) for node in self._graph.nodes}
-    #         G_copy = nx.relabel_nodes(self._graph, mapping, copy=True)
-
-    #         # Add level to each node in Pyvis based on dist / subset
-    #         for relabeled_node, original_node in {v: k for k, v in mapping.items()}.items():
-    #             level = self._graph.nodes[original_node].get("subset", 0)
-    #             G_copy.nodes[relabeled_node]["level"] = level
-            
-    #         # Add the 'title' attribute to the relabeled graph
-    #         for original_node, relabeled_node in mapping.items():
-    #             G_copy.nodes[relabeled_node]['label'] = original_node.name
-    #             G_copy.nodes[relabeled_node]['title'] = original_node.name  # Add title for hover functionality
-            
-    #         # Modify edge attributes in the relabeled graph
-    #         for u, v, data in G_copy.edges(data=True):
-    #             # Use the mapping to get the original nodes
-    #             original_u = next(key for key, value in mapping.items() if value == u)
-    #             original_v = next(key for key, value in mapping.items() if value == v)
-                
-    #             # Get subset values from the original graph
-    #             subset_u = self._graph.nodes[original_u].get("subset", 0)
-    #             subset_v = self._graph.nodes[original_v].get("subset", 0)
-                
-    #             # Calculate edge length based on subset difference
-    #             edge_length = abs(subset_u - subset_v)
-    #             data['length'] = edge_length ** edge_length_power # Add the length parameter to the edge data
-
-    #             # Add keys or values to edge labels based on flags
-    #             if show_keys:
-    #                 data['label'] = f"{data.get('from_node_key', '')} -> {data.get('to_node_key', '')}"
-    #             elif show_values:
-    #                 data['label'] = str(data.get('value', ''))
-            
-    #         # Convert the modified graph to pyvis
-    #         options = {
-    #             "layout": {
-    #                 "hierarchical": {
-    #                     "enabled": True,
-    #                     "levelSeparation": 150,
-    #                     "nodeSpacing": 200,
-    #                 }
-    #             },
-    #             "edges": {
-    #                 "smooth": True
-    #             },
-    #             "physics": {
-    #                 "enabled": True
-    #             }
-    #         }
-
-    #         nt.set_options(json.dumps(options))
-
-    #         nt.from_nx(G_copy)
-    #         nt.write_html(output_name, open_browser=True)
-    #     else:
-    #         nx.draw(self._graph, pos, labels=node_labels, with_labels=True, node_size=300, font_size=5)
-        
-    #         # Draw the edge labels (only 'value') with adjusted positioning
-    #         nx.draw_networkx_edge_labels(
-    #             self._graph, pos, edge_labels=edge_labels, font_size=8, label_pos=0.5
-    #         )
-            
-    #         # Save or show the graph
-    #         if save_path:
-    #             plt.savefig(save_path, bbox_inches="tight")  # Ensure labels fit within the saved image
-    #         else:
-    #             plt.show()
-    #         plt.close()
 
     def view_graph_debug(self, show_keys: bool = False, show_values: bool = False, output_name: str = "debug_graph.html"):
         nt = Network(height='750px', width='100%', directed=True, cdn_resources="remote")
