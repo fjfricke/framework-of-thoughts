@@ -1,4 +1,5 @@
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphPartitions
+from llm_graph_optimizer.graph_of_operations.types import ReasoningStateType, ReasoningStateExecutionType
 from .abstract_operation import AbstractOperation
 
 class Start(AbstractOperation):
@@ -6,12 +7,15 @@ class Start(AbstractOperation):
     Start operation.
     """
 
-    def __init__(self, input_types: dict[str, type] = None):
-        super().__init__(input_types, input_types)
+    def __init__(self, input_types: ReasoningStateType = None, output_types: ReasoningStateExecutionType = None, static_outputs: ReasoningStateExecutionType = {}):
+        if not static_outputs:
+            super().__init__(input_types, input_types)
+        else:
+            super().__init__(input_types, output_types)
         self.input_reasoning_states = None
-
-    def set_input_reasoning_states(self, input_reasoning_states: dict[str, any]):
+        self.static_outputs = static_outputs
+    def set_input_reasoning_states(self, input_reasoning_states: ReasoningStateExecutionType):
         self.input_reasoning_states = input_reasoning_states
 
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: dict[str, any]) -> dict[str, any]:
-        return input_reasoning_states
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningStateExecutionType) -> ReasoningStateExecutionType:
+        return {**self.static_outputs, **input_reasoning_states}
