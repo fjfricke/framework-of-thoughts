@@ -123,7 +123,7 @@ class GraphPartitions:
         self.descendants = descendants
         self.exclusive_descendants = exclusive_descendants
         self.original_graph = predecessors.original_graph
-    def move_edge(self, current_edge: Edge, new_from_node: "AbstractOperation", new_from_node_key: NodeKey, order: int=0):
+    def move_edge(self, current_edge: Edge, new_from_node: "AbstractOperation", new_from_node_key: NodeKey):
         edge_data = self.descendants.get_edge_data(current_edge)
         if edge_data is None:
             raise ValueError(f"Edge {current_edge} does not exist in the graph.")
@@ -132,7 +132,7 @@ class GraphPartitions:
         if new_from_node not in self.exclusive_descendants:
             raise ValueError(f"In order to move an edge, the new from_node must be in the exclusive Descendants graph. {new_from_node} is not.")
         self.original_graph._remove_edge(current_edge)
-        self.original_graph._add_edge(Edge(new_from_node, current_edge.to_node, new_from_node_key, current_edge.to_node_key), order)
+        self.original_graph._add_edge(Edge(new_from_node, current_edge.to_node, new_from_node_key, current_edge.to_node_key), order=edge_data.get("order", 0))
 
     def remove_node(self, node: "AbstractOperation"):
         if node in self.exclusive_descendants and node not in self.descendants:

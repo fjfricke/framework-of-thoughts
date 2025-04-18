@@ -51,6 +51,7 @@ class Controller:
                 self.logger.debug("Processing operation: %s", operation.name)
                 try:
                     await operation.execute(self.graph_of_operations)
+                    # self.graph_of_operations.view_graph_debug(output_name=f"debug_{time.time()}.html")
                     self.logger.debug("Operation %s completed successfully.", operation.name)
                     operation.node_state = NodeState.DONE
                 except OperationFailed as e:

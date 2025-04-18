@@ -25,6 +25,7 @@ class SnapshotGraph():
 
     def view(self, show_multiedges: bool = True, show_keys: bool = False, show_values: bool = False, show_state: bool = False, notebook: bool = False):
         nt = self._create_view(show_multiedges, show_keys, show_values, show_state)
+        # nt.show_buttons(filter_=["layout", "physics"])
 
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as temp_file:
             temp_path = temp_file.name
@@ -34,7 +35,7 @@ class SnapshotGraph():
                 nt.show(temp_path, notebook=False)
                 webbrowser.open(f"file://{temp_path}")
     def _create_view(self, show_multiedges: bool = True, show_keys: bool = False, show_values: bool = False, show_state: bool = False) -> Network:
-        nt = Network(height='100%', width='100%', directed=True, cdn_resources="remote")
+        nt = Network(height='600px', width='100%', directed=True, cdn_resources="remote", filter_menu=True)
         graph = copy.deepcopy(self._graph)
 
         # Remove all attributes from edges in the copied graph and set the `title` attribute
@@ -82,13 +83,26 @@ class SnapshotGraph():
 
         # Configure physics to make edges less springy and allow more space
         physics_options = {
+            "layout": {
+                "hierarchical": {
+                    "enabled": True,
+                    "levelSeparation": 100,
+                    "nodeSpacing": 200,
+                    "treeSpacing": 220,
+                    "direction": "LR",
+                    "sortMethod": "directed"
+                }
+            },
             "physics": {
-                "forceAtlas2Based": {
-                    "springLength": 200,
-                    "springConstant": 0.05
+                "hierarchicalRepulsion": {
+                    "centralGravity": 0,
+                    "springConstant": 0,
+                    "nodeDistance": 75,
+                    "damping": 0.17,
+                    "avoidOverlap": None
                 },
                 "minVelocity": 0.75,
-                "solver": "forceAtlas2Based"
+                "solver": "hierarchicalRepulsion"
             }
         }
         nt.set_options(json.dumps(physics_options))
