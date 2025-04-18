@@ -4,7 +4,7 @@ import bm25s
 from examples.hotpotqa.programs.utils import find_dependencies, replace_dependencies
 
 from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartitions
-from llm_graph_optimizer.graph_of_operations.types import ManyToOne, ReasoningStateExecutionType
+from llm_graph_optimizer.graph_of_operations.types import ManyToOne, ReasoningState
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
 from llm_graph_optimizer.language_models.openai_chat import OpenAIChat
 from llm_graph_optimizer.operations.helpers.exceptions import OperationFailed
@@ -19,7 +19,7 @@ def prompter(question: str, dependency_answers: list[str], context: str) -> str:
         dependency_answers = []
     replaced_question = replace_dependencies(question, {id: answer for id, answer in zip(dependencies_ids, dependency_answers)})
     context_with_examples = f"""
-Please answer the question and explain why. Output no more than 5 words after "So the answer is".
+Please answer the question and explain why. Output no more than 5 words after "So the answer is". End with \"So the answer is: <answer>.\"
 
 #1 Wikipedia Title: First (magazine)
 Text: FiRST is a Singaporean movie magazine formerly published monthly, now running as a weekly newspaper insert.
@@ -111,7 +111,7 @@ class OpenBookReasoning(LLMOperationWithLogprobs):
         context = parse_bm25_documents(context_raw)
         return context
     
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningStateExecutionType) -> ReasoningStateExecutionType:
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> ReasoningState:
         input_reasoning_states["context"] = await self.retrieve_context(input_reasoning_states["question"])
         return await super()._execute(partitions, input_reasoning_states)
 

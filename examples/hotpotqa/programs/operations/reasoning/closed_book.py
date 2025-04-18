@@ -10,7 +10,7 @@ from llm_graph_optimizer.operations.llm_operations.llm_operation_with_logprobs i
 
 def prompter(question: str, dependency_answers: list[str]) -> str:
     context = """
-Please answer the question by thinking step-by-step.
+Please answer the question by thinking step-by-step. End with \"So the answer is: <answer>.\"
 Q: Jeremy Theobald and Christopher Nolan share what profession?
 A: Jeremy Theobald is an actor and producer. Christopher Nolan is a director, producer, and screenwriter. Therefore, they both share the profession of being a producer. So the answer is: producer.
 Q: How many episodes were in the South Korean television series in which Ryu Hye−young played Bo−ra?

@@ -25,8 +25,8 @@ def probtree_controller() -> Controller:
 
     start_node = Start(
         input_types={"question": str},
-        output_types={"question": str, "question_decomposition_score": float, "dependency_answers": list[str], "dependency_decomposition_scores": list[float]},
-        static_outputs={"question_decomposition_score": 1.0, "dependency_answers": [], "dependency_decomposition_scores": []}
+        output_types={"question": str, "question_decomposition_score": float},
+        static_outputs={"question_decomposition_score": 0.0}
     )
 
     end_node = End(
@@ -69,8 +69,6 @@ def probtree_controller() -> Controller:
     
     probtree_graph.add_edge(Edge(start_node, understanding_node, "question", "question"))
     probtree_graph.add_edge(Edge(start_node, understanding_node, "question_decomposition_score", "question_decomposition_score"))
-    probtree_graph.add_edge(Edge(start_node, understanding_node, "dependency_answers", "dependency_answers"))
-    probtree_graph.add_edge(Edge(start_node, understanding_node, "dependency_decomposition_scores", "dependency_decomposition_scores"))
 
     probtree_graph.add_edge(Edge(generate_hqdt_node, understanding_node, "hqdt", "hqdt"))
 
@@ -89,6 +87,9 @@ if __name__ == "__main__":
     controller = probtree_controller()
     import asyncio
     # output = asyncio.run(controller.execute({"question": "What is 1+1?"}))
-    output = asyncio.run(controller.execute({"question": "What is the combined population of the biggest 2 neighbour country of the largest country in Europe by capita?"}))
-    controller.graph_of_operations.view_graph_debug(output_name="probtree_debug.html")
+    output = asyncio.run(controller.execute({"question": "What is the combined population of the population-wise biggest 2 neighbour country of the largest country in Europe by capita?"}))
+    controller.graph_of_operations.view_graph_debug(output_name="probtree_debug_2.html")
+    snapshot_graph = controller.graph_of_operations.snapshot
+    save_path = Path(os.getcwd()) / "examples" / "hotpotqa" / "output"
+    snapshot_graph.save(save_path / "probtree_debug.pkl")
     print(output)

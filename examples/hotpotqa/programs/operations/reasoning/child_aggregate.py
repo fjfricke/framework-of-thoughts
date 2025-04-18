@@ -3,7 +3,7 @@ from examples.hotpotqa.programs.utils import find_dependencies, replace_dependen
 from typing import Callable
 
 from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartitions
-from llm_graph_optimizer.graph_of_operations.types import ManyToOne, ReasoningStateExecutionType
+from llm_graph_optimizer.graph_of_operations.types import ManyToOne, ReasoningState
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
 from llm_graph_optimizer.language_models.openai_chat import OpenAIChat
 from llm_graph_optimizer.operations.helpers.exceptions import OperationFailed
@@ -12,7 +12,7 @@ from llm_graph_optimizer.operations.llm_operations.llm_operation_with_logprobs i
 
 def prompter(question: str, question_decomposition_score: float, dependency_answers: list[str], subquestions: list[str], subquestion_answers: list[str], child_decomposition_scores: list[float]) -> str:
     exemplar = """
-Given a qeustion and a context, answer the question and explain why.
+Given a qeustion and a context, answer the question and explain why. End with \"So the answer is: <answer>.\"
 
 #
 Context:
@@ -81,11 +81,11 @@ def parser(data: list[tuple[str, float]], question_decomposition_score: float, c
 
 class ChildAggregateReasoning(LLMOperationWithLogprobs):
     def __init__(self, llm: AbstractLanguageModel, use_cache: bool = True, params: dict = None, name: str = "ChildAggregateReasoning"):
-        input_types = {"question": str, "question_decomposition_score": float, "dependency_answers": ManyToOne[str], "subquestions": ManyToOne[str], "subquestion_answers": ManyToOne[str], "child_decomposition_scores": ManyToOne[float]}
+        input_types = {"question": str, "question_decomposition_score": float, "dependency_answers": list[str] | NoneType, "subquestions": ManyToOne[str], "subquestion_answers": ManyToOne[str], "child_decomposition_scores": ManyToOne[float]}
         output_types = {"answer": str, "decomposition_score": float}
         super().__init__(llm, prompter, parser, use_cache, params, input_types, output_types, name)
 
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningStateExecutionType) -> ReasoningStateExecutionType:
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> ReasoningState:
         try:
             # Unpack input_reasoning_states into named arguments for the prompter
             prompt = self.prompter(**input_reasoning_states)

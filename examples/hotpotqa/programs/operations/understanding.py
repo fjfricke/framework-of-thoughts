@@ -15,7 +15,7 @@ from llm_graph_optimizer.operations.test_operation import TestOperation
 
 class UnderstandingGraphUpdating(AbstractOperation):
     def __init__(self, open_book_op: AbstractOperationFactory, closed_book_op: AbstractOperationFactory, child_aggregate_op: AbstractOperationFactory, understanding_op: AbstractOperationFactory, params: dict = None, name: str = None):
-        input_types = {"hqdt": dict, "question": str, "question_decomposition_score": float, "dependency_answers": ManyToOne[str], "dependency_decomposition_scores": ManyToOne[float]}
+        input_types = {"hqdt": dict, "question": str, "question_decomposition_score": float, "dependency_answers": ManyToOne[str]}
         output_types = Dynamic
         super().__init__(input_types, output_types, params, name)
         self.open_book_op = open_book_op
@@ -34,11 +34,12 @@ class UnderstandingGraphUpdating(AbstractOperation):
         else:
             subquestions = hqdt[current_question][0]
 
-        output_reasoning_states = {"hqdt": hqdt, "question": current_question, "answer": StateNotSet, "question_decomposition_score": StateNotSet}
+        dependency_answers = list(input_reasoning_states["dependency_answers"])
+        output_reasoning_states = {"hqdt": hqdt, "question": current_question, "answer": StateNotSet, "question_decomposition_score": StateNotSet, "dependency_answers": dependency_answers}
 
         def filter_operation(length: int):
             def filter_function(input_list: list[dict[str, any]]) -> dict[str, any]:
-                return min(input_list, key=lambda x: x["decomposition_score"])
+                return max(input_list, key=lambda x: x["decomposition_score"])
             return FilterOperation(output_types={"answer": str, "decomposition_score": float}, length=length, filter_function=filter_function)
 
         
@@ -68,6 +69,7 @@ class UnderstandingGraphUpdating(AbstractOperation):
             partitions.exclusive_descendants.add_node(child_aggregate_node)
             partitions.exclusive_descendants.add_edge(Edge(self, child_aggregate_node, "question", "question"))
             partitions.exclusive_descendants.add_edge(Edge(self, child_aggregate_node, "question_decomposition_score", "question_decomposition_score"))
+            partitions.exclusive_descendants.add_edge(Edge(self, child_aggregate_node, "dependency_answers", "dependency_answers"))
             pack_child_aggregate_node = pack_op()
             partitions.exclusive_descendants.add_node(pack_child_aggregate_node)
             partitions.exclusive_descendants.add_edge(Edge(child_aggregate_node, pack_child_aggregate_node, "answer", "answer"))
@@ -88,6 +90,12 @@ class UnderstandingGraphUpdating(AbstractOperation):
         successor_edges = [edge for edge in successor_edges if edge.to_node_key in ["answer", "decomposition_score"]]
         for successor_edge in successor_edges:
             partitions.move_edge(current_edge=successor_edge, new_from_node=filter_node, new_from_node_key=successor_edge.to_node_key)
+
+        successor_edges = partitions.descendants.successor_edges(self)
+        successor_edges = [edge for edge in successor_edges if type(edge.to_node) is UnderstandingGraphUpdating]
+        successor_edges = [edge for edge in successor_edges if edge.to_node_key == "dependency_answers"]
+        for successor_edge in successor_edges:
+            partitions.move_edge(current_edge=successor_edge, new_from_node=filter_node, new_from_node_key="answer")
 
         # move successor edges going to previous aggregate to start at filter node
         to_key_to_from_key = {
