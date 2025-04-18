@@ -1,26 +1,28 @@
 from typing import TYPE_CHECKING
 from .base_graph import BaseGraph
-from .types import NodeKey
+from .types import Edge, NodeKey
+from networkx import MultiDiGraph
 
 if TYPE_CHECKING:
     from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
 
 
 class Predecessors(BaseGraph):
-    @classmethod
-    def from_graph_of_operations(cls, graph_of_operations: BaseGraph):
-        return cls(graph_of_operations.graph)
+
+    def __init__(self, original_graph: BaseGraph, subgraph: MultiDiGraph):
+        super().__init__(subgraph)
+        self.original_graph = original_graph
 
     def add_node(self, node: "AbstractOperation"):
         raise PermissionError("Adding nodes is forbidden in Predecessors.")
 
-    def add_edge(self, from_node: "AbstractOperation", to_node: "AbstractOperation", from_node_key: NodeKey, to_node_key: NodeKey):
+    def add_edge(self, edge: Edge):
         raise PermissionError("Adding edges is forbidden in Predecessors.")
     
     def remove_node(self, node: "AbstractOperation"):
         raise PermissionError("Removing nodes is forbidden in Predecessors.")
     
-    def remove_edge(self, from_node: "AbstractOperation", to_node: "AbstractOperation", from_node_key: NodeKey, to_node_key: NodeKey):
+    def remove_edge(self, edge: Edge):
         raise PermissionError("Removing edges is forbidden in Predecessors.")
     
     @property
@@ -35,21 +37,29 @@ class Predecessors(BaseGraph):
         return end_nodes[0]
 
 class ExclusiveDescendants(BaseGraph):
-    @classmethod
-    def from_graph_of_operations(cls, graph_of_operations: BaseGraph):
-        return cls(graph_of_operations.graph)
+
+    def __init__(self, original_graph: BaseGraph, subgraph: MultiDiGraph):
+        super().__init__(subgraph)
+        self.original_graph = original_graph
+        self.new_nodes = set()
     
     def add_node(self, node: "AbstractOperation"):
-        super()._add_node(node)
-    
-    def add_edge(self, from_node: "AbstractOperation", to_node: "AbstractOperation", from_node_key: NodeKey, to_node_key: NodeKey):
-        super()._add_edge(from_node, to_node, from_node_key=from_node_key, to_node_key=to_node_key)
+        self.original_graph._add_node(node)
+        self.new_nodes.add(node)
+    def add_edge(self, edge: Edge, order: int=0):
+        if edge.from_node in (self._graph.nodes | self.new_nodes) and edge.to_node in (self._graph.nodes | self.new_nodes):
+            self.original_graph._add_edge(edge, order)
+        else:
+            raise ValueError(f"Both ends of the edge must be in the exclusive descendants graph. {edge.from_node} or {edge.to_node} is/are not in the original graph.")
 
     def remove_node(self, node: "AbstractOperation"):
         raise PermissionError("Removing nodes is forbidden in ExclusiveDescendants. Use the function in the GraphPartitions class instead.")
     
-    def remove_edge(self, from_node: "AbstractOperation", to_node: "AbstractOperation", from_node_key: NodeKey, to_node_key: NodeKey):
-        super()._remove_edge(from_node, to_node, from_node_key=from_node_key, to_node_key=to_node_key)
+    def remove_edge(self, edge: Edge):
+        if edge in self.edges:
+            self.original_graph._remove_edge(edge)
+        else:
+            raise ValueError(f"Edge {edge} is not in the exclusive descendants graph.")
     
     @property
     def start_node(self) -> "AbstractOperation":
@@ -61,24 +71,35 @@ class ExclusiveDescendants(BaseGraph):
     @property
     def end_node(self) -> "AbstractOperation":
         raise PermissionError("End node is not defined for ExclusiveDescendants.")
+    
+    def __contains__(self, node: "AbstractOperation") -> bool:
+        return node in self._graph.nodes or node in self.new_nodes
 
 class Descendants(BaseGraph):
 
-    @classmethod
-    def from_graph_of_operations(cls, graph_of_operations: BaseGraph):
-       return cls(graph_of_operations.graph)
+    def __init__(self, original_graph: BaseGraph, subgraph: MultiDiGraph):
+        super().__init__(subgraph)
+        self.original_graph = original_graph
     
     def add_node(self, node: "AbstractOperation"):
         raise PermissionError("Adding nodes is forbidden in Descendants.")
     
-    def add_edge(self, from_node: "AbstractOperation", to_node: "AbstractOperation", from_node_key: NodeKey, to_node_key: NodeKey):
+    def add_edge(self, edge: Edge):
         raise PermissionError("Adding edges is forbidden in Descendants.")
     
     def remove_node(self, node: "AbstractOperation"):
         raise PermissionError("Removing nodes is forbidden in Descendants.")
     
-    def remove_edge(self, from_node: "AbstractOperation", to_node: "AbstractOperation", from_node_key: NodeKey, to_node_key: NodeKey):
+    def remove_edge(self, edge: Edge):
         raise PermissionError("Removing edges is forbidden in Descendants.")
+    
+    def _move_edge(self, current_edge: Edge, new_from_node: "AbstractOperation", new_from_node_key: NodeKey, order: int=0):
+        self.original_graph._remove_edge(current_edge)
+        self.original_graph._add_edge(Edge(new_from_node, current_edge.to_node, new_from_node_key, current_edge.to_node_key), order)
+    
+    def successor_edges(self, node: "AbstractOperation") -> list[Edge]:
+        successor_edges = self._graph.out_edges(node, data=True)
+        return Edge.from_edge_view(successor_edges)
     
     @property
     def start_node(self) -> "AbstractOperation":
@@ -101,20 +122,20 @@ class GraphPartitions:
         self.predecessors = predecessors
         self.descendants = descendants
         self.exclusive_descendants = exclusive_descendants
-
-    def move_edge(self, previous_from_node: "AbstractOperation", new_from_node: "AbstractOperation", to_node: "AbstractOperation", previous_from_node_key: NodeKey, new_from_node_key: NodeKey, to_node_key: NodeKey):
-        edge_data = self.descendants.get_edge_data(previous_from_node, to_node, previous_from_node_key, to_node_key)
+        self.original_graph = predecessors.original_graph
+    def move_edge(self, current_edge: Edge, new_from_node: "AbstractOperation", new_from_node_key: NodeKey, order: int=0):
+        edge_data = self.descendants.get_edge_data(current_edge)
         if edge_data is None:
-            raise ValueError(f"Edge ({previous_from_node}, {to_node}, {previous_from_node_key}, {to_node_key}) does not exist in the graph.")
-        if previous_from_node not in self.exclusive_descendants:
-            raise ValueError(f"In order to move an edge, the previous from_node must be in the exclusive Descendants graph. {previous_from_node} is not.")
+            raise ValueError(f"Edge {current_edge} does not exist in the graph.")
+        if current_edge.from_node not in self.exclusive_descendants:
+            raise ValueError(f"In order to move an edge, the previous from_node must be in the exclusive Descendants graph. {current_edge.from_node} is not.")
         if new_from_node not in self.exclusive_descendants:
             raise ValueError(f"In order to move an edge, the new from_node must be in the exclusive Descendants graph. {new_from_node} is not.")
-        self.descendants.add_edge(new_from_node, to_node, from_node_key=new_from_node_key, to_node_key=to_node_key)
-        self.descendants.remove_edge(previous_from_node, to_node, previous_from_node_key, to_node_key)
+        self.original_graph._remove_edge(current_edge)
+        self.original_graph._add_edge(Edge(new_from_node, current_edge.to_node, new_from_node_key, current_edge.to_node_key), order)
 
     def remove_node(self, node: "AbstractOperation"):
         if node in self.exclusive_descendants and node not in self.descendants:
-            self.exclusive_descendants._remove_node(node)
+            self.original_graph._remove_node(node)
         else:
-            raise ValueError(f"Node {node} is not in the exclusive Descendants graph or points to non-exclusivedescendants.")
+            raise ValueError(f"Node {node} is not in the exclusive Descendants graph or points to non-exclusivedescendants")

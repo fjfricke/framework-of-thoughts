@@ -1,8 +1,9 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, get_origin
 import networkx as nx
-
+from typeguard import TypeCheckError, check_type
+import pickle
 from .base_graph import BaseGraph
-from .types import NodeKey
+from .types import Edge, NodeKey, ManyToOne
 from llm_graph_optimizer.operations.helpers.node_state import NodeState
 from .graph_partitions import Descendants, ExclusiveDescendants, GraphPartitions, Predecessors
 if TYPE_CHECKING:
@@ -19,12 +20,13 @@ class GraphOfOperations(BaseGraph):
     
     @property
     def processable_nodes(self) -> list["AbstractOperation"]:
-        return [node for node in self._graph.nodes if node.node_state == NodeState.PROCESSABLE]
+        processable_nodes = [node for node in self._graph.nodes if node.node_state == NodeState.PROCESSABLE]
+        return processable_nodes
     
     def set_next_processable(self):
         # set nodes with all predecessors finished to processable
         for node in self._graph.nodes:
-            if all(predecessor.node_state == NodeState.DONE for predecessor in self._graph.predecessors(node)):
+            if all(predecessor.node_state in [NodeState.DONE, NodeState.FAILED] for predecessor in self._graph.predecessors(node)):
                 if node.node_state == NodeState.WAITING:
                     node.node_state = NodeState.PROCESSABLE
     
@@ -39,14 +41,14 @@ class GraphOfOperations(BaseGraph):
     def add_node(self, node: "AbstractOperation"):
         super()._add_node(node)
 
-    def add_edge(self, from_node: "AbstractOperation", to_node: "AbstractOperation", from_node_key: NodeKey, to_node_key: NodeKey):
-        super()._add_edge(from_node, to_node, from_node_key=from_node_key, to_node_key=to_node_key)
+    def add_edge(self, edge: Edge, order: int=0):
+        super()._add_edge(edge, order)
 
     def remove_node(self, node: "AbstractOperation"):
         super()._remove_node(node)
     
-    def remove_edge(self, from_node: "AbstractOperation", to_node: "AbstractOperation", from_node_key: NodeKey, to_node_key: NodeKey):
-        super()._remove_edge(from_node, to_node, from_node_key=from_node_key, to_node_key=to_node_key)
+    def remove_edge(self, edge: Edge):
+        super()._remove_edge(edge)
     
     def update_edge_values(self, from_node: "AbstractOperation", value: dict[NodeKey, any]):
         super()._update_edge_values(from_node, value)
@@ -56,15 +58,25 @@ class GraphOfOperations(BaseGraph):
             return node.input_reasoning_states
         predecessors = self._graph.predecessors(node)
         input_reasoning_states = {}
+        for key, expected_type in node.input_types.items():
+            if get_origin(expected_type) == ManyToOne:
+                input_reasoning_states[key] = []
         for predecessor in predecessors:
             if not predecessor.node_state.is_finished:
                 raise ValueError(f"Predecessor {predecessor} is not finished")
             edge_data = self._graph.get_edge_data(predecessor, node)
-            for edge in edge_data.values():
+            edge_data_values_sorted = sorted(edge_data.values(), key=lambda x: x["order"])
+            for edge in edge_data_values_sorted:
                 to_node_key = edge["to_node_key"]
                 if to_node_key is not None:
                     value = edge.get("value")
-                    input_reasoning_states[to_node_key] = value
+                    # Check if the type is OneToManyList or a parameterized version of it
+                    if get_origin(node.input_types[to_node_key]) == ManyToOne:
+                        # Aggregate values into a list
+                        input_reasoning_states[to_node_key].append(value)
+                    else:
+                        # Assign the value directly for non-OneToManyList types
+                        input_reasoning_states[to_node_key] = value
         return input_reasoning_states
     
     def partitions(self, node: "AbstractOperation") -> GraphPartitions:
@@ -81,9 +93,9 @@ class GraphOfOperations(BaseGraph):
         exclusive_descendant_nodes = descendants_nodes - unconnected_descendant_nodes | {node}
 
         return GraphPartitions(
-            predecessors=Predecessors(self._graph.subgraph(predecessors_nodes)),
-            descendants=Descendants(self._graph.subgraph(descendants_nodes)),
-            exclusive_descendants=ExclusiveDescendants(self._graph.subgraph(exclusive_descendant_nodes))
+            predecessors=Predecessors(self, self._graph.subgraph(predecessors_nodes)),
+            descendants=Descendants(self, self._graph.subgraph(descendants_nodes)),
+            exclusive_descendants=ExclusiveDescendants(self, self._graph.subgraph(exclusive_descendant_nodes))
             )
 
     @property
