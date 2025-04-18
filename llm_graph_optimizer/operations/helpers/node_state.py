@@ -20,3 +20,7 @@ class NodeState(Enum):
     @property
     def not_yet_scheduled(self) -> bool:
         return self in [NodeState.WAITING, NodeState.PROCESSABLE]
+
+    def __str__(self):
+        return str(self.value)
+    

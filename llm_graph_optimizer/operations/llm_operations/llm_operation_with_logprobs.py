@@ -1,6 +1,6 @@
 from typing import Callable
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphPartitions
-from llm_graph_optimizer.graph_of_operations.types import ReasoningStateType, ReasoningStateExecutionType
+from llm_graph_optimizer.graph_of_operations.types import ReasoningStateType, ReasoningState
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
 
 from ..helpers.exceptions import OperationFailed
@@ -29,7 +29,7 @@ class LLMOperationWithLogprobs(AbstractOperation):
         self.use_cache = use_cache
         super().__init__(input_types=input_types, output_types=output_types, params=params, name=name)
 
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningStateExecutionType) -> ReasoningStateExecutionType:
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> ReasoningState:
         try:
             # Unpack input_reasoning_states into named arguments for the prompter
             prompt = self.prompter(**input_reasoning_states)

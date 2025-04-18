@@ -43,10 +43,6 @@ Dynamic = DynamicType()
 class ManyToOne(list):
     def __repr__(self):
         return "<ManyToOne>"
-    
-class ZeroOrManyToOne(ManyToOne):
-    def __repr__(self):
-        return "<ZeroOrManyToOne>"
 
-ReasoningStateExecutionType = dict[NodeKey, any]
+ReasoningState = dict[NodeKey, any]
 ReasoningStateType = dict[NodeKey, type] | DynamicType

@@ -5,7 +5,7 @@ from typing import Callable, get_origin
 from typeguard import TypeCheckError, check_type
 
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations, GraphPartitions
-from llm_graph_optimizer.graph_of_operations.types import Dynamic, ManyToOne, ReasoningStateExecutionType, ReasoningStateType, StateNotSet
+from llm_graph_optimizer.graph_of_operations.types import Dynamic, ManyToOne, ReasoningState, ReasoningStateType, StateNotSet
 from .helpers.exceptions import OperationFailed
 from .helpers.node_state import NodeState
 
@@ -26,7 +26,7 @@ class AbstractOperation(ABC):
         self.name = name or self.__class__.__name__
 
     @abstractmethod
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningStateExecutionType) -> ReasoningStateExecutionType:
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> ReasoningState:
         pass
 
     async def execute(self, graph: GraphOfOperations) -> None:

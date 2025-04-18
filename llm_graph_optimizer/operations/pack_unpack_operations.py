@@ -1,15 +1,15 @@
 from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartitions
-from llm_graph_optimizer.graph_of_operations.types import ReasoningStateExecutionType, ReasoningStateType
+from llm_graph_optimizer.graph_of_operations.types import ReasoningState, ReasoningStateType
 from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
 
 
 class PackOperation(AbstractOperation):
     def __init__(self, input_types: ReasoningStateType, output_key: str | int, params: dict = None, name: str = None):
-        output_types = {output_key: ReasoningStateExecutionType}
+        output_types = {output_key: ReasoningState}
         self.output_key = output_key
         super().__init__(input_types, output_types, params, name)
 
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningStateExecutionType) -> ReasoningStateExecutionType:
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> ReasoningState:
         return {self.output_key: input_reasoning_states}
     
     @property
@@ -18,11 +18,11 @@ class PackOperation(AbstractOperation):
     
 class UnpackOperation(AbstractOperation):
     def __init__(self, input_key: str | int, output_types: ReasoningStateType, params: dict = None, name: str = None):
-        input_types = {input_key: ReasoningStateExecutionType}
+        input_types = {input_key: ReasoningState}
         self.input_key = input_key
         super().__init__(input_types, output_types, params, name)
 
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningStateExecutionType) -> ReasoningStateExecutionType:
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> ReasoningState:
         return input_reasoning_states[self.input_key]
     
     @property
