@@ -8,6 +8,7 @@ from llm_graph_optimizer.operations.llm_operations import BaseLLMOperation
 from llm_graph_optimizer.operations.score_operation import ScoreOperation
 from llm_graph_optimizer.operations.start import Start
 from llm_graph_optimizer.operations.end import End
+from llm_graph_optimizer.graph_of_operations.types import Edge
 
 
 def cot_controller() -> Controller:
@@ -48,12 +49,12 @@ def cot_controller() -> Controller:
     cot_graph.add_node(score_node)
     cot_graph.add_node(end_node)
 
-    cot_graph.add_edge(start_node, generate_cot_node, "input_list", "input_list")
-    cot_graph.add_edge(generate_cot_node, score_node, "output", "output")
-    cot_graph.add_edge(start_node, score_node, "expected_output", "expected_output")
-    cot_graph.add_edge(score_node, end_node, "score", "score")
-    cot_graph.add_edge(generate_cot_node, end_node, "output", "output")
-    cot_graph.add_edge(start_node, end_node, "expected_output", "expected_output")
+    cot_graph.add_edge(Edge(start_node, generate_cot_node, "input_list", "input_list"))
+    cot_graph.add_edge(Edge(generate_cot_node, score_node, "output", "output"))
+    cot_graph.add_edge(Edge(start_node, score_node, "expected_output", "expected_output"))
+    cot_graph.add_edge(Edge(score_node, end_node, "score", "score"))
+    cot_graph.add_edge(Edge(generate_cot_node, end_node, "output", "output"))
+    cot_graph.add_edge(Edge(start_node, end_node, "expected_output", "expected_output"))
 
     # Initialize the controller
     cot_controller = Controller(

@@ -8,6 +8,7 @@ from llm_graph_optimizer.operations.llm_operations import BaseLLMOperation
 from llm_graph_optimizer.operations.score_operation import ScoreOperation
 from llm_graph_optimizer.operations.start import Start
 from llm_graph_optimizer.operations.end import End
+from llm_graph_optimizer.graph_of_operations.types import Edge
 
 
 def io_controller() -> Controller:
@@ -58,12 +59,12 @@ def io_controller() -> Controller:
     io_graph.add_node(score_node)
     io_graph.add_node(end_node)
 
-    io_graph.add_edge(start_node, generate_node, "input_list", "input_list")
-    io_graph.add_edge(generate_node, score_node, "output", "output")
-    io_graph.add_edge(start_node, score_node, "expected_output", "expected_output")
-    io_graph.add_edge(score_node, end_node, "score", "score")
-    io_graph.add_edge(generate_node, end_node, "output", "output")
-    io_graph.add_edge(start_node, end_node, "expected_output", "expected_output")
+    io_graph.add_edge(Edge(start_node, generate_node, "input_list", "input_list"))
+    io_graph.add_edge(Edge(generate_node, score_node, "output", "output"))
+    io_graph.add_edge(Edge(start_node, score_node, "expected_output", "expected_output"))
+    io_graph.add_edge(Edge(score_node, end_node, "score", "score"))
+    io_graph.add_edge(Edge(generate_node, end_node, "output", "output"))
+    io_graph.add_edge(Edge(start_node, end_node, "expected_output", "expected_output"))
 
     # Initialize the controller
     io_controller = Controller(

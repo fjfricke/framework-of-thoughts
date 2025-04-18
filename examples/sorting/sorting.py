@@ -8,8 +8,8 @@ from examples.sorting.programs.tot import tot_controller
 logging.basicConfig(level=logging.DEBUG)
 
 async def run_controllers(input_list, expected_output):
-    for controller in [io_controller(), cot_controller(), tot_controller()]:
-    # for controller in [tot_controller(num_branches=3, improvement_levels=2)]:
+    # for controller in [io_controller(), cot_controller(), tot_controller()]:
+    for controller in [tot_controller(num_branches=3, improvement_levels=2)]:
         answer = await controller.execute(input={"input_list": input_list, "expected_output": expected_output})
         controller.graph_of_operations.view_graph(show_values=True)
         print(answer)

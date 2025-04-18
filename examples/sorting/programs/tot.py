@@ -11,6 +11,7 @@ from llm_graph_optimizer.operations.llm_operations import BaseLLMOperation
 from llm_graph_optimizer.operations.score_operation import ScoreOperation
 from llm_graph_optimizer.operations.start import Start
 from llm_graph_optimizer.operations.end import End
+from llm_graph_optimizer.graph_of_operations.types import Edge
 
 
 def tot_controller(num_branches: int = 20, improvement_levels: int = 2) -> Controller:
@@ -28,7 +29,8 @@ def tot_controller(num_branches: int = 20, improvement_levels: int = 2) -> Contr
         parser=generate_parser,
         use_cache=False,
         input_types={"input_list": list[int]},
-        output_types={"output": list[int]}
+        output_types={"output": list[int]},
+        name="GenerateAnswer"
     )
 
     improvement_op = lambda: BaseLLMOperation(
@@ -37,7 +39,8 @@ def tot_controller(num_branches: int = 20, improvement_levels: int = 2) -> Contr
         parser=generate_parser,
         use_cache=False,
         input_types={"input_list": list[int], "incorrectly_sorted": list[int]},
-        output_types={"output": list[int]}
+        output_types={"output": list[int]},
+        name="ImproveAnswer"
     )
 
     score_op = lambda: ScoreOperation(
@@ -75,12 +78,12 @@ def tot_controller(num_branches: int = 20, improvement_levels: int = 2) -> Contr
         tot_graph.add_node(score_node)
         pack_node = pack_op()
         tot_graph.add_node(pack_node)
-        tot_graph.add_edge(start_node, generate_node, "input_list", "input_list")
-        tot_graph.add_edge(generate_node, score_node, "output", "output")
-        tot_graph.add_edge(start_node, score_node, "expected_output", "expected_output")
-        tot_graph.add_edge(score_node, pack_node, "score", "score")
-        tot_graph.add_edge(generate_node, pack_node, "output", "output")
-        tot_graph.add_edge(pack_node, keep_best_nodes[0], "packed", i)
+        tot_graph.add_edge(Edge(start_node, generate_node, "input_list", "input_list"))
+        tot_graph.add_edge(Edge(generate_node, score_node, "output", "output"))
+        tot_graph.add_edge(Edge(start_node, score_node, "expected_output", "expected_output"))
+        tot_graph.add_edge(Edge(score_node, pack_node, "score", "score"))
+        tot_graph.add_edge(Edge(generate_node, pack_node, "output", "output"))
+        tot_graph.add_edge(Edge(pack_node, keep_best_nodes[0], "packed", i))
     for i in range(improvement_levels):
         for j in range(num_branches):
             improvement_node = improvement_op()
@@ -89,18 +92,18 @@ def tot_controller(num_branches: int = 20, improvement_levels: int = 2) -> Contr
             tot_graph.add_node(score_node)
             pack_node = pack_op()
             tot_graph.add_node(pack_node)
-            tot_graph.add_edge(keep_best_nodes[i], improvement_node, "output", "incorrectly_sorted")
-            tot_graph.add_edge(start_node, improvement_node, "input_list", "input_list")
-            tot_graph.add_edge(improvement_node, score_node, "output", "output")
-            tot_graph.add_edge(start_node, score_node, "expected_output", "expected_output")
-            tot_graph.add_edge(score_node, pack_node, "score", "score")
-            tot_graph.add_edge(improvement_node, pack_node, "output", "output")
-            tot_graph.add_edge(pack_node, keep_best_nodes[i + 1], "packed", j)
+            tot_graph.add_edge(Edge(keep_best_nodes[i], improvement_node, "output", "incorrectly_sorted"))
+            tot_graph.add_edge(Edge(start_node, improvement_node, "input_list", "input_list"))
+            tot_graph.add_edge(Edge(improvement_node, score_node, "output", "output"))
+            tot_graph.add_edge(Edge(start_node, score_node, "expected_output", "expected_output"))
+            tot_graph.add_edge(Edge(score_node, pack_node, "score", "score"))
+            tot_graph.add_edge(Edge(improvement_node, pack_node, "output", "output"))
+            tot_graph.add_edge(Edge(pack_node, keep_best_nodes[i + 1], "packed", j))
 
     tot_graph.add_node(end_node)
-    tot_graph.add_edge(keep_best_nodes[-1], end_node, "output", "output")
-    tot_graph.add_edge(keep_best_nodes[-1], end_node, "score", "score")
-    tot_graph.add_edge(start_node, end_node, "expected_output", "expected_output")
+    tot_graph.add_edge(Edge(keep_best_nodes[-1], end_node, "output", "output"))
+    tot_graph.add_edge(Edge(keep_best_nodes[-1], end_node, "score", "score"))
+    tot_graph.add_edge(Edge(start_node, end_node, "expected_output", "expected_output"))
 
 
     tot_graph.view_graph(show_keys=True, use_pyvis=True)
@@ -108,7 +111,7 @@ def tot_controller(num_branches: int = 20, improvement_levels: int = 2) -> Contr
     tot_controller = Controller(
         graph_of_operations=tot_graph,
         scheduler=Scheduler.BFS,
-        max_concurrent=1
+        max_concurrent=5
     )
 
     return tot_controller
