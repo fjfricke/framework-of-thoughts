@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 import logging
-from llm_graph_optimizer.language_models.cache.cache import Cache
+from llm_graph_optimizer.language_models.cache.cache import Cache, CacheCategory
 from llm_graph_optimizer.language_models.cache.types import LLMCacheKey, CacheSeed
-from llm_graph_optimizer.measurement.measurement import Measurement
+from llm_graph_optimizer.measurement.measurement import Measurement, MeasurementsWithCache
 from llm_graph_optimizer.types import LLMOutput
 
 from .helpers.language_model_config import Config, LLMResponseType
@@ -50,12 +50,28 @@ class AbstractLanguageModel(ABC):
         """
         Query the language model with caching.
         """
+
         # Check if the prompt is in the cache
         if use_cache and self.cache:
             cache_entry, cache_category = self.cache.get(self.cache_identifiers, prompt, cache_seed)
             if cache_entry:
+                response, no_cache_measurement = cache_entry
                 self.logger.debug(f"Cache hit for {self.cache_identifiers} with prompt {prompt} and cache seed {cache_seed}.")
-                return cache_entry
+                if cache_category == CacheCategory.PROCESS:
+                    measurements = MeasurementsWithCache(
+                        no_cache=no_cache_measurement,
+                        with_process_cache=Measurement(),
+                        with_persistent_cache=Measurement()
+                    )
+                elif cache_category == CacheCategory.PERSISTENT:
+                    measurements = MeasurementsWithCache(
+                        no_cache=no_cache_measurement,
+                        with_process_cache=no_cache_measurement,
+                        with_persistent_cache=Measurement()
+                    )
+                else:
+                    raise ValueError(f"Invalid cache category: {cache_category}")
+                return response, measurements
 
         # If not in cache, query the language model
         response, measurement = await self._raw_query(prompt)
@@ -65,4 +81,8 @@ class AbstractLanguageModel(ABC):
             self.logger.debug(f"Cache miss for {self.cache_identifiers} with prompt {prompt} and cache seed {cache_seed}. Storing result in cache.")
             self.cache.set(self.cache_identifiers, prompt, cache_seed, (response, measurement))
 
-        return response, measurement
+        return response, MeasurementsWithCache(
+            no_cache=measurement,
+            with_process_cache=measurement,
+            with_persistent_cache=measurement
+        )

@@ -7,7 +7,7 @@ import time
 
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations, GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import Dynamic, ManyToOne, ReasoningState, ReasoningStateType, StateNotSet
-from llm_graph_optimizer.measurement.measurement import Measurement
+from llm_graph_optimizer.measurement.measurement import Measurement, MeasurementsWithCache
 from .helpers.exceptions import OperationFailed
 from .helpers.node_state import NodeState
 
@@ -28,11 +28,10 @@ class AbstractOperation(ABC):
         self.name = name or self.__class__.__name__
 
     @abstractmethod
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement | None]:
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement | MeasurementsWithCache | None]:
         pass
 
-    async def execute(self, graph: GraphOfOperations) -> Measurement:
-        
+    async def execute(self, graph: GraphOfOperations) -> Measurement | MeasurementsWithCache:
         input_reasoning_states = graph.get_input_reasoning_states(self)
         
         # Validate input_reasoning_states
@@ -55,10 +54,10 @@ class AbstractOperation(ABC):
                     raise TypeError(f"Input '{key}' must be of type {expected_type}, got {type(input_reasoning_states[key])}") from e
 
         partitions = graph.partitions(self)
-        result, measurement = await self._execute(partitions, input_reasoning_states)
+        result, measurement_or_measurements_with_cache = await self._execute(partitions, input_reasoning_states)
 
-        if not measurement:
-            measurement = Measurement()
+        if not measurement_or_measurements_with_cache:
+            measurement_or_measurements_with_cache = Measurement()
 
         # Validate result
         if not isinstance(result, dict):
@@ -84,6 +83,6 @@ class AbstractOperation(ABC):
         self.output_reasoning_states = result
         logging.debug(f"Output reasoning states: {self.output_reasoning_states} for operation {self.name}")
         graph.update_edge_values(self, result)
-        return measurement
+        return measurement_or_measurements_with_cache
 
 AbstractOperationFactory = Callable[[], AbstractOperation]

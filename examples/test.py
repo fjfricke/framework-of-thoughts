@@ -7,6 +7,7 @@ from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfO
 from llm_graph_optimizer.graph_of_operations.types import Edge
 from llm_graph_optimizer.language_models.cache.cache import Cache
 from llm_graph_optimizer.language_models.openai_chat import OpenAIChat
+from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
 from llm_graph_optimizer.operations.base_operations.end import End
 from llm_graph_optimizer.operations.base_operations.start import Start
 from llm_graph_optimizer.operations.llm_operations import BaseLLMOperation
@@ -38,6 +39,7 @@ llm_op = BaseLLMOperation(
     parser=parser,
     input_types={"input": str},
     output_types={"output": str},
+    cache_seed=0
 )
 
 llm_op_2 = BaseLLMOperation(
@@ -46,6 +48,7 @@ llm_op_2 = BaseLLMOperation(
     parser=parser,
     input_types={"input": str},
     output_types={"output": str},
+    cache_seed=0
 )
 
 
@@ -69,16 +72,20 @@ graph.add_edge(Edge(start_node, llm_op_2, from_node_key="start", to_node_key="in
 graph.add_edge(Edge(llm_op, end_node, from_node_key="output", to_node_key="end"))
 graph.add_edge(Edge(llm_op_2, end_node, from_node_key="output", to_node_key="end_2"))
 
+#Initialize the measurement
+process_measurement = ProcessMeasurement(graph)
+
 # Initialize the scheduler
 scheduler = Scheduler.BFS
 
 # Initialize the controller
-controller = Controller(graph, scheduler, max_concurrent=1)
+controller = Controller(graph, scheduler, max_concurrent=1, process_measurement=process_measurement)
 
 # Run the controller
 async def run_controller():
-    answer = await controller.execute(input={"start": "Hello, world!"})
+    answer, measurements = await controller.execute(input={"start": "Hello, world!"})
     print(answer)
+    print(measurements)
     # cache.save("cache.pkl")
     # graph.view_graph()
 

@@ -53,9 +53,9 @@ class Controller:
                     break
                 self.logger.debug("Processing operation: %s", operation.name)
                 try:
-                    measurement = await operation.execute(self.graph_of_operations)
+                    measurement_or_measurements_with_cache = await operation.execute(self.graph_of_operations)
                     if self.process_measurement:
-                        self.process_measurement.add_measurement(operation, measurement)
+                        self.process_measurement.add_measurement(operation, measurement_or_measurements_with_cache)
                     # self.graph_of_operations.view_graph_debug(output_name=f"debug_{time.time()}.html")
                     self.logger.debug("Operation %s completed successfully.", operation.name)
                     operation.node_state = NodeState.DONE

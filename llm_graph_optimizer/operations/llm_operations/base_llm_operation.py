@@ -4,7 +4,7 @@ from llm_graph_optimizer.graph_of_operations.types import ReasoningStateType, Re
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
 from llm_graph_optimizer.language_models.helpers.language_model_config import LLMResponseType
 from llm_graph_optimizer.language_models.cache.types import CacheSeed
-from llm_graph_optimizer.measurement.measurement import Measurement
+from llm_graph_optimizer.measurement.measurement import MeasurementsWithCache
 
 from ..helpers.exceptions import OperationFailed
 from ..abstract_operation import AbstractOperation
@@ -35,7 +35,7 @@ class BaseLLMOperation(AbstractOperation):
         self.cache_seed = cache_seed
         super().__init__(input_types=input_types, output_types=output_types, params=params, name=name)
 
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement]:
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, MeasurementsWithCache]:
         try:
             # Unpack input_reasoning_states into named arguments for the prompter
             prompt = self.prompter(**input_reasoning_states)
