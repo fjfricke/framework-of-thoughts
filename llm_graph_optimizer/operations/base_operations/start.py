@@ -1,7 +1,7 @@
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import ReasoningStateType, ReasoningState
 from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
-from llm_graph_optimizer.measurement.measurement import Measurement
+from llm_graph_optimizer.measurement.measurement import Measurements
 class Start(AbstractOperation):
     """
     Start operation.
@@ -17,5 +17,5 @@ class Start(AbstractOperation):
     def set_input_reasoning_states(self, input_reasoning_states: ReasoningState):
         self.input_reasoning_states = input_reasoning_states
 
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement | None]:
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurements | None]:
         return {**self.static_outputs, **input_reasoning_states}, None

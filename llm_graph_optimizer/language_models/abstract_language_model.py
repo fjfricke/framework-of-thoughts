@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 import logging
 from llm_graph_optimizer.language_models.cache.cache import Cache
 from llm_graph_optimizer.language_models.cache.types import LLMCacheKey, CacheSeed
-from llm_graph_optimizer.measurement.measurement import Measurement
+from llm_graph_optimizer.measurement.measurement import Measurements
 from llm_graph_optimizer.types import LLMOutput
 
 from .helpers.language_model_config import Config, LLMResponseType
@@ -40,13 +40,13 @@ class AbstractLanguageModel(ABC):
         )
 
     @abstractmethod
-    async def _raw_query(self, prompt: str) -> tuple[LLMOutput, Measurement]:
+    async def _raw_query(self, prompt: str) -> tuple[LLMOutput, Measurements]:
         """
         Query the language model with a prompt.
         """
         pass
 
-    async def query(self, prompt: str, use_cache: bool = True, cache_seed: CacheSeed = None) -> tuple[LLMOutput, Measurement]:
+    async def query(self, prompt: str, use_cache: bool = True, cache_seed: CacheSeed = None) -> tuple[LLMOutput, Measurements]:
         """
         Query the language model with caching.
         """

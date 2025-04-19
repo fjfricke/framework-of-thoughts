@@ -3,7 +3,7 @@ from typing import Callable
 from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import ReasoningState, ReasoningStateType
 from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
-from llm_graph_optimizer.measurement.measurement import Measurement
+from llm_graph_optimizer.measurement.measurement import Measurements
 
 class FilterOperation(AbstractOperation):
     """
@@ -16,6 +16,6 @@ class FilterOperation(AbstractOperation):
         self.filter_function = filter_function
         super().__init__(input_types, output_types, params, name)
 
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: dict[int, ReasoningState]) -> tuple[ReasoningState, Measurement | None]:
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: dict[int, ReasoningState]) -> tuple[ReasoningState, Measurements | None]:
         input_reasoning_states_list = list(input_reasoning_states.values())
         return self.filter_function(input_reasoning_states_list), None  
