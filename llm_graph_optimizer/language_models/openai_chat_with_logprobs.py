@@ -5,7 +5,7 @@ import os
 
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
 from llm_graph_optimizer.language_models.helpers.language_model_config import Config, LLMResponseType
-from llm_graph_optimizer.measurement.measurement import Measurements
+from llm_graph_optimizer.measurement.measurement import Measurement
 from llm_graph_optimizer.language_models.cache.cache import Cache
 
 class OpenAIChatWithLogprobs(AbstractLanguageModel):
@@ -45,7 +45,7 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
         }
 
     @backoff.on_exception(backoff.expo, OpenAIError, max_time=10, max_tries=6)
-    async def _raw_query(self, prompt: str) -> tuple[list[str, float], Measurements | None]:
+    async def _raw_query(self, prompt: str) -> tuple[list[str, float], Measurement | None]:
         """
         Query the OpenAI Legacy Completions API and return metadata.
 
@@ -67,7 +67,7 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
 
         output_with_logprobs = [(content.token, content.logprob) for content in response.choices[0].logprobs.content]
 
-        measurement = Measurements(
+        measurement = Measurement(
             request_tokens=response.usage.prompt_tokens,
             response_tokens=response.usage.completion_tokens,
             total_tokens=response.usage.total_tokens,

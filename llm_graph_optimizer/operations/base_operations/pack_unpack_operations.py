@@ -1,7 +1,7 @@
 from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import ReasoningState, ReasoningStateType
 from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
-from llm_graph_optimizer.measurement.measurement import Measurements
+from llm_graph_optimizer.measurement.measurement import Measurement
 
 class PackOperation(AbstractOperation):
     def __init__(self, input_types: ReasoningStateType, output_key: str | int, params: dict = None, name: str = None):
@@ -9,7 +9,7 @@ class PackOperation(AbstractOperation):
         self.output_key = output_key
         super().__init__(input_types, output_types, params, name)
 
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurements | None]:
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement | None]:
         return {self.output_key: input_reasoning_states}, None
     
     @property
@@ -22,7 +22,7 @@ class UnpackOperation(AbstractOperation):
         self.input_key = input_key
         super().__init__(input_types, output_types, params, name)
 
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurements | None]:
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement | None]:
         return input_reasoning_states[self.input_key], None
     
     @property

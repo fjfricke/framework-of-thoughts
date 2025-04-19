@@ -5,7 +5,7 @@ from examples.hotpotqa.programs.utils import find_dependencies
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
 from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import Dynamic, Edge, ManyToOne, ReasoningState, StateNotSet
-from llm_graph_optimizer.measurement.measurement import Measurements
+from llm_graph_optimizer.measurement.measurement import Measurement
 from llm_graph_optimizer.operations.abstract_operation import AbstractOperation, AbstractOperationFactory
 from llm_graph_optimizer.operations.base_operations.end import End
 from llm_graph_optimizer.operations.base_operations.filter_operation import FilterOperation
@@ -24,7 +24,7 @@ class UnderstandingGraphUpdating(AbstractOperation):
         self.child_aggregate_op = child_aggregate_op
         self.understanding_op = understanding_op
 
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurements]:
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement]:
         
 
         # get state data

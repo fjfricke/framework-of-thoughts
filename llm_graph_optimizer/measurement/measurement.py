@@ -7,7 +7,7 @@ class SequentialCost(Generic[T]):
         return "<SequentialCost>"
 
 @dataclass
-class Measurements:
+class Measurement:
     request_tokens: Optional[int] = None
     response_tokens: Optional[int] = None
     total_tokens: Optional[int] = None
@@ -25,10 +25,10 @@ class Measurements:
             return entry_1
         return entry_1 + entry_2
 
-    def __add__(self, other: 'Measurements') -> 'Measurements':
+    def __add__(self, other: 'Measurement') -> 'Measurement':
         combined_attributes = {
             field.name: self._add_entries(getattr(self, field.name), getattr(other, field.name))
             for field in fields(self)
         }
 
-        return Measurements(**combined_attributes)
+        return Measurement(**combined_attributes)

@@ -5,7 +5,7 @@ import os
 
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
 from llm_graph_optimizer.language_models.helpers.language_model_config import Config, LLMResponseType
-from llm_graph_optimizer.measurement.measurement import Measurements
+from llm_graph_optimizer.measurement.measurement import Measurement
 from llm_graph_optimizer.language_models.cache.cache import Cache
 
 class OpenAIChat(AbstractLanguageModel):
@@ -45,7 +45,7 @@ class OpenAIChat(AbstractLanguageModel):
         }
 
     @backoff.on_exception(backoff.expo, OpenAIError, max_time=10, max_tries=6)
-    async def _raw_query(self, prompt: str) -> tuple[str, Measurements | None]:
+    async def _raw_query(self, prompt: str) -> tuple[str, Measurement | None]:
         """
         Query the OpenAI ChatCompletion API and return metadata.
 
@@ -67,7 +67,7 @@ class OpenAIChat(AbstractLanguageModel):
         duration = perf_counter() - start_time
 
         # Extract token usage from the response
-        measurement = Measurements(
+        measurement = Measurement(
             request_tokens=response.usage.prompt_tokens,
             response_tokens=response.usage.completion_tokens,
             total_tokens=response.usage.total_tokens,

@@ -6,7 +6,7 @@ from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartit
 from llm_graph_optimizer.graph_of_operations.types import ManyToOne, ReasoningState
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
 from llm_graph_optimizer.language_models.openai_chat import OpenAIChat
-from llm_graph_optimizer.measurement.measurement import Measurements
+from llm_graph_optimizer.measurement.measurement import Measurement
 from llm_graph_optimizer.operations.helpers.exceptions import OperationFailed
 from llm_graph_optimizer.operations.llm_operations.llm_operation_with_logprobs import LLMOperationWithLogprobs
 
@@ -86,7 +86,7 @@ class ChildAggregateReasoning(LLMOperationWithLogprobs):
         output_types = {"answer": str, "decomposition_score": float}
         super().__init__(llm, prompter, parser, use_cache, params, input_types, output_types, name)
 
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurements]:
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement]:
         try:
             # Unpack input_reasoning_states into named arguments for the prompter
             prompt = self.prompter(**input_reasoning_states)

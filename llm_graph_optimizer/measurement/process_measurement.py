@@ -3,7 +3,7 @@ from typing import Dict, get_origin
 
 from llm_graph_optimizer.graph_of_operations.base_graph import BaseGraph
 
-from .measurement import Measurements, SequentialCost
+from .measurement import Measurement, SequentialCost
 from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
 
 
@@ -11,20 +11,20 @@ class ProcessMeasurement:
 
     def __init__(self, graph_of_operations: BaseGraph):
         self.graph_of_operations = graph_of_operations
-        self.measurement_for_operation: Dict[AbstractOperation, Measurements] = {}
+        self.measurement_for_operation: Dict[AbstractOperation, Measurement] = {}
 
-    def add_measurement(self, operation: AbstractOperation, measurement: Measurements):
+    def add_measurement(self, operation: AbstractOperation, measurement: Measurement):
         self.measurement_for_operation[operation] = measurement
 
-    def total_sequential_cost(self) -> Measurements:
-        total_measurement = Measurements()
+    def total_sequential_cost(self) -> Measurement:
+        total_measurement = Measurement()
         for _, measurement in self.measurement_for_operation.items():
             total_measurement += measurement
         return total_measurement
     
-    def total_parallel_cost(self) -> Measurements:
+    def total_parallel_cost(self) -> Measurement:
         total_sequential_cost = self.total_sequential_cost()
-        total_parallel_cost = Measurements()
+        total_parallel_cost = Measurement()
 
         for attr in fields(total_sequential_cost):
             if get_origin(attr.type) == SequentialCost:

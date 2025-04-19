@@ -7,7 +7,7 @@ import time
 
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations, GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import Dynamic, ManyToOne, ReasoningState, ReasoningStateType, StateNotSet
-from llm_graph_optimizer.measurement.measurement import Measurements
+from llm_graph_optimizer.measurement.measurement import Measurement
 from .helpers.exceptions import OperationFailed
 from .helpers.node_state import NodeState
 
@@ -28,10 +28,10 @@ class AbstractOperation(ABC):
         self.name = name or self.__class__.__name__
 
     @abstractmethod
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurements | None]:
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement | None]:
         pass
 
-    async def execute(self, graph: GraphOfOperations) -> Measurements:
+    async def execute(self, graph: GraphOfOperations) -> Measurement:
         
         input_reasoning_states = graph.get_input_reasoning_states(self)
         
@@ -58,7 +58,7 @@ class AbstractOperation(ABC):
         result, measurement = await self._execute(partitions, input_reasoning_states)
 
         if not measurement:
-            measurement = Measurements()
+            measurement = Measurement()
 
         # Validate result
         if not isinstance(result, dict):

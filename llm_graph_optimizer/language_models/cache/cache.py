@@ -3,7 +3,7 @@ import logging
 import pickle
 from enum import Enum
 from llm_graph_optimizer.language_models.cache.types import CacheSeed, LLMCacheKey
-from llm_graph_optimizer.measurement.measurement import Measurements
+from llm_graph_optimizer.measurement.measurement import Measurement
 from llm_graph_optimizer.types import LLMOutput
 
 class CacheCategory(Enum):
@@ -18,8 +18,8 @@ class Cache:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.process_cache: dict[tuple[LLMCacheKey, str, CacheSeed], tuple[LLMOutput, Measurements]] = {}
-        self.persistent_cache: dict[tuple[LLMCacheKey, str, CacheSeed], tuple[LLMOutput, Measurements]] = {}
+        self.process_cache: dict[tuple[LLMCacheKey, str, CacheSeed], tuple[LLMOutput, Measurement]] = {}
+        self.persistent_cache: dict[tuple[LLMCacheKey, str, CacheSeed], tuple[LLMOutput, Measurement]] = {}
 
     @classmethod
     def from_file(cls, file_path: str) -> "Cache":
@@ -38,7 +38,7 @@ class Cache:
         with open(file_path, "wb") as f:
             pickle.dump(self.persistent_cache, f)
     
-    def get(self, cache_key: LLMCacheKey, prompt: str, cache_seed: CacheSeed) -> tuple[tuple[LLMOutput, Measurements] | None, CacheCategory | None]:
+    def get(self, cache_key: LLMCacheKey, prompt: str, cache_seed: CacheSeed) -> tuple[tuple[LLMOutput, Measurement] | None, CacheCategory | None]:
         """
         Get the result from the cache.
         """
@@ -49,7 +49,7 @@ class Cache:
         else:
             return None, None
         
-    def set(self, cache_key: LLMCacheKey, prompt: str, cache_seed: CacheSeed, result: tuple[LLMOutput, Measurements]):
+    def set(self, cache_key: LLMCacheKey, prompt: str, cache_seed: CacheSeed, result: tuple[LLMOutput, Measurement]):
         """
         Set the result in the cache.
         """
