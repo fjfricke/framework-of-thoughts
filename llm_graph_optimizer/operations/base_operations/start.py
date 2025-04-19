@@ -1,6 +1,6 @@
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import ReasoningStateType, ReasoningState
-from .abstract_operation import AbstractOperation
+from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
 from llm_graph_optimizer.measurement.measurement import Measurement
 class Start(AbstractOperation):
     """

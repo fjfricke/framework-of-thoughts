@@ -2,9 +2,9 @@ from typing import Callable
 
 from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import ReasoningStateType, ReasoningState
+from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
 from llm_graph_optimizer.operations.helpers.exceptions import OperationFailed
 from llm_graph_optimizer.measurement.measurement import Measurement
-from .abstract_operation import AbstractOperation
 
 class ScoreOperation(AbstractOperation):
     """
