@@ -2,6 +2,7 @@ from typing import Callable
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import ReasoningStateType, ReasoningState
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
+from llm_graph_optimizer.language_models.helpers.language_model_config import LLMResponseType
 from llm_graph_optimizer.measurement.measurement import Measurement
 
 from ..helpers.exceptions import OperationFailed
@@ -25,6 +26,8 @@ class BaseLLMOperation(AbstractOperation):
         :param output_types: Expected output types for the operation.
         """
         self.llm = llm
+        if not llm.llm_response_type == LLMResponseType.TEXT:
+            raise ValueError(f"Only LLMs that return text are supported. The given LLM {llm} returns {llm.llm_response_type}.")
         self.prompter = prompter
         self.parser = parser
         self.use_cache = use_cache

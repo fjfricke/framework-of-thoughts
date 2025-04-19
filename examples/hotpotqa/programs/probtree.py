@@ -9,20 +9,20 @@ from examples.hotpotqa.programs.operations.understanding import UnderstandingGra
 from examples.hotpotqa.programs.prompter_parser import understanding_parser, understanding_prompt
 from llm_graph_optimizer.controller.controller import Controller
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
-from llm_graph_optimizer.graph_of_operations.types import Edge, StateNotSet
+from llm_graph_optimizer.graph_of_operations.types import Edge
 from llm_graph_optimizer.language_models.helpers.language_model_config import Config
-from llm_graph_optimizer.language_models.openai_chat import OpenAIChat
+from llm_graph_optimizer.language_models.openai_chat_with_logprobs import OpenAIChatWithLogprobs
 from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
-from llm_graph_optimizer.operations.end import End
+from llm_graph_optimizer.operations.base_operations.end import End
+from llm_graph_optimizer.operations.base_operations.start import Start
 from llm_graph_optimizer.operations.llm_operations.llm_operation_with_logprobs import LLMOperationWithLogprobs
-from llm_graph_optimizer.operations.start import Start
 from llm_graph_optimizer.schedulers.schedulers import Scheduler
 
 logging.getLogger().setLevel(logging.CRITICAL)
 logging.getLogger('llm_graph_optimizer.controller.controller').setLevel(logging.DEBUG)
 
 def probtree_controller() -> Controller:
-    llm = OpenAIChat(model="gpt-4o", config=Config(temperature=0.0))
+    llm = OpenAIChatWithLogprobs(model="gpt-4o", config=Config(temperature=0.0))
 
     start_node = Start(
         input_types={"question": str},

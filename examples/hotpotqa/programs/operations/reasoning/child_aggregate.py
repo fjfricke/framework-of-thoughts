@@ -92,7 +92,7 @@ class ChildAggregateReasoning(LLMOperationWithLogprobs):
             prompt = self.prompter(**input_reasoning_states)
             
             # Query the language model
-            response, measurement = await self.llm.query_with_logprobs(prompt=prompt, use_cache=self.use_cache)
+            response, measurement = await self.llm.query(prompt=prompt, use_cache=self.use_cache)
             
             # Pass the response to the parser
             return self.parser(response, input_reasoning_states["question_decomposition_score"], input_reasoning_states["child_decomposition_scores"]), measurement

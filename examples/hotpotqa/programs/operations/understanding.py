@@ -7,11 +7,11 @@ from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartit
 from llm_graph_optimizer.graph_of_operations.types import Dynamic, Edge, ManyToOne, ReasoningState, StateNotSet
 from llm_graph_optimizer.measurement.measurement import Measurement
 from llm_graph_optimizer.operations.abstract_operation import AbstractOperation, AbstractOperationFactory
-from llm_graph_optimizer.operations.end import End
-from llm_graph_optimizer.operations.filter_operation import FilterOperation
-from llm_graph_optimizer.operations.pack_unpack_operations import PackOperation
-from llm_graph_optimizer.operations.start import Start
-from llm_graph_optimizer.operations.test_operation import TestOperation
+from llm_graph_optimizer.operations.base_operations.end import End
+from llm_graph_optimizer.operations.base_operations.filter_operation import FilterOperation
+from llm_graph_optimizer.operations.base_operations.pack_unpack_operations import PackOperation
+from llm_graph_optimizer.operations.base_operations.start import Start
+from llm_graph_optimizer.operations.base_operations.test_operation import TestOperation
 
 
 class UnderstandingGraphUpdating(AbstractOperation):

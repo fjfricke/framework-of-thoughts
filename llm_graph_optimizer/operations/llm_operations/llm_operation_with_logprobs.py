@@ -2,6 +2,7 @@ from typing import Callable
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import ReasoningStateType, ReasoningState
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
+from llm_graph_optimizer.language_models.helpers.language_model_config import LLMResponseType
 from llm_graph_optimizer.measurement.measurement import Measurement
 
 from ..helpers.exceptions import OperationFailed
@@ -25,6 +26,8 @@ class LLMOperationWithLogprobs(AbstractOperation):
         :param output_types: Expected output types for the operation.
         """
         self.llm = llm
+        if not llm.llm_response_type == LLMResponseType.TOKENS_AND_LOGPROBS:
+            raise ValueError(f"Only LLMs that return tokens and logprobs are supported. The given LLM {llm} returns {llm.llm_response_type}.")
         self.prompter = prompter
         self.parser = parser
         self.use_cache = use_cache
@@ -36,7 +39,7 @@ class LLMOperationWithLogprobs(AbstractOperation):
             prompt = self.prompter(**input_reasoning_states)
             
             # Query the language model
-            response, measurement = await self.llm.query_with_logprobs(prompt=prompt, use_cache=self.use_cache)
+            response, measurement = await self.llm.query(prompt=prompt, use_cache=self.use_cache)
             
             # Pass the response to the parser
             return self.parser(response), measurement
