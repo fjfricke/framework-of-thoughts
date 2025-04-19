@@ -54,18 +54,8 @@ class AbstractOperation(ABC):
                 else:
                     raise TypeError(f"Input '{key}' must be of type {expected_type}, got {type(input_reasoning_states[key])}") from e
 
-            # If the expected_type is a parameterized generic, validate the elements
-            # if hasattr(expected_type, "__args__") and isinstance(input_reasoning_states[key], expected_type.__origin__):
-            #     element_type = expected_type.__args__[0]
-            #     if not all(isinstance(item, element_type) for item in input_reasoning_states[key]):
-            #         raise TypeError(f"Elements of input '{key}' must be of type {element_type}")
-
         partitions = graph.partitions(self)
-        start_time = time.perf_counter()
         result, measurement = await self._execute(partitions, input_reasoning_states)
-        end_time = time.perf_counter()
-
-        logging.info(f"Execution time for {self.name}: {end_time - start_time:.4f} seconds")
 
         if not measurement:
             measurement = Measurement()
