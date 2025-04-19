@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import copy
-from typing import TYPE_CHECKING, get_origin
+from numbers import Number
+from typing import TYPE_CHECKING, Callable, get_origin, TypeVar, Protocol
 import networkx as nx
 import matplotlib.pyplot as plt
 import json
@@ -164,6 +165,19 @@ class BaseGraph(ABC):
     @property
     def edges(self) -> list[Edge]:
         return [Edge(from_node=edge[0], to_node=edge[1], from_node_key=edge[2]["from_node_key"], to_node_key=edge[2]["to_node_key"]) for edge in self._graph.edges(data=True)]
+    
+    def longest_path(self, weight: Callable[["AbstractOperation"], Number]) -> Number:
+        path_digraph = self.digraph.copy()
+        #if cycles in the graph raise an error
+        if not nx.is_directed_acyclic_graph(path_digraph):
+            raise NotImplementedError("Graph has cycles. Unrolling not implemented yet for calculating the longest path.")
+        # the weight of each edge is the weight of the to_node (adding start_node weight to the edges coming from there)
+        for edge in path_digraph.edges(data=True):
+            edge[2]["weight"] = weight(edge[1])
+            if edge[0] == self._start_node:
+                edge[2]["weight"] += weight(edge[0])
+
+        return nx.dag_longest_path_length(path_digraph, default_weight=0)
     
     @property
     @abstractmethod

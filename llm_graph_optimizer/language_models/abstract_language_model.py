@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
-from .helpers.query_metadata import QueryMetadata
+from llm_graph_optimizer.measurement.measurement import Measurement
+
 from .helpers.language_model_config import Config
 
 class AbstractLanguageModel(ABC):
@@ -9,27 +10,28 @@ class AbstractLanguageModel(ABC):
     """
 
     @abstractmethod
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, execution_cost: float = 1):
         # Initialize the cache as an empty dictionary
         self._cache = {}
         self._cache_with_logprobs = {}
         self._config = config
+        self._execution_cost = execution_cost
 
     @abstractmethod
-    async def _raw_query(self, prompt: str) -> tuple[str, QueryMetadata]:
+    async def _raw_query(self, prompt: str) -> tuple[str, Measurement]:
         """
         Query the language model with a prompt.
         """
         pass
 
     @abstractmethod
-    async def _raw_query_with_logprobs(self, prompt: str) -> tuple[list[str, float], QueryMetadata]:
+    async def _raw_query_with_logprobs(self, prompt: str) -> tuple[list[str, float], Measurement]:
         """
         Query the language model with log probabilities.
         """
         pass
 
-    async def query(self, prompt: str, use_cache: bool = True) -> tuple[str, QueryMetadata]:
+    async def query(self, prompt: str, use_cache: bool = True) -> tuple[str, Measurement]:
         """
         Query the language model with caching.
         """
@@ -38,15 +40,15 @@ class AbstractLanguageModel(ABC):
             return self._cache[prompt]
 
         # If not in cache, query the language model
-        response = await self._raw_query(prompt)
+        response, measurement = await self._raw_query(prompt)
 
         # Store the result in the cache
         if use_cache:
             self._cache[prompt] = response
 
-        return response
+        return response, measurement
     
-    async def query_with_logprobs(self, prompt: str, use_cache: bool = True) -> tuple[list[str, float], QueryMetadata]:
+    async def query_with_logprobs(self, prompt: str, use_cache: bool = True) -> tuple[list[str, float], Measurement]:
         """
         Query the language model with log probabilities.
         """
@@ -55,13 +57,13 @@ class AbstractLanguageModel(ABC):
             return self._cache_with_logprobs[prompt]
 
         # If not in cache, query the language model
-        response = await self._raw_query_with_logprobs(prompt)
+        response, measurement = await self._raw_query_with_logprobs(prompt)
 
         # Store the result in the cache
         if use_cache:
             self._cache_with_logprobs[prompt] = response
 
-        return response
+        return response, measurement
 
     def reset_cache(self):
         """

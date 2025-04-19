@@ -1,6 +1,7 @@
 # Initialize the language model
 from llm_graph_optimizer.controller.controller import Controller
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
+from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
 from llm_graph_optimizer.schedulers.schedulers import Scheduler
 from examples.sorting.programs.prompter_parser import generate_prompt, generate_prompt_cot, generate_parser, scoring_function
 from llm_graph_optimizer.language_models.openai_chat import OpenAIChat
@@ -66,11 +67,14 @@ def io_controller() -> Controller:
     io_graph.add_edge(Edge(generate_node, end_node, "output", "output"))
     io_graph.add_edge(Edge(start_node, end_node, "expected_output", "expected_output"))
 
+    process_measurement = ProcessMeasurement(graph_of_operations=io_graph)
+
     # Initialize the controller
     io_controller = Controller(
         graph_of_operations=io_graph,
         scheduler=Scheduler.BFS,
-        max_concurrent=1
+        max_concurrent=1,
+        process_measurement=process_measurement
     )
 
     return io_controller

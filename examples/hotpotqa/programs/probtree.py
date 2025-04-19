@@ -12,6 +12,7 @@ from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfO
 from llm_graph_optimizer.graph_of_operations.types import Edge, StateNotSet
 from llm_graph_optimizer.language_models.helpers.language_model_config import Config
 from llm_graph_optimizer.language_models.openai_chat import OpenAIChat
+from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
 from llm_graph_optimizer.operations.end import End
 from llm_graph_optimizer.operations.llm_operations.llm_operation_with_logprobs import LLMOperationWithLogprobs
 from llm_graph_optimizer.operations.start import Start
@@ -75,10 +76,13 @@ def probtree_controller() -> Controller:
     probtree_graph.add_edge(Edge(understanding_node, end_node, "answer", "answer"))
     probtree_graph.add_edge(Edge(understanding_node, end_node, "decomposition_score", "decomposition_score"))
 
+    process_measurement = ProcessMeasurement(graph_of_operations=probtree_graph)
+
     controller = Controller(
         graph_of_operations=probtree_graph,
         scheduler=Scheduler.BFS,
         max_concurrent=5,
+        process_measurement=process_measurement
     )
 
     return controller
@@ -87,9 +91,11 @@ if __name__ == "__main__":
     controller = probtree_controller()
     import asyncio
     # output = asyncio.run(controller.execute({"question": "What is 1+1?"}))
-    output = asyncio.run(controller.execute({"question": "What is the combined population of the population-wise biggest 2 neighbour country of the largest country in Europe by capita?"}))
-    controller.graph_of_operations.view_graph_debug(output_name="probtree_debug_2.html")
+    controller.graph_of_operations.snapshot.view(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
+    output, process_measurement = asyncio.run(controller.execute({"question": "What is the combined population of the population-wise biggest 2 neighbour country of the largest country in Europe by capita?"}))
     snapshot_graph = controller.graph_of_operations.snapshot
+    snapshot_graph.view(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
     save_path = Path(os.getcwd()) / "examples" / "hotpotqa" / "output"
     snapshot_graph.save(save_path / "probtree_debug.pkl")
     print(output)
+    print(process_measurement)

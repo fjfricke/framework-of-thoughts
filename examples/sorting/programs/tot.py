@@ -2,6 +2,7 @@
 from llm_graph_optimizer.controller.controller import Controller
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
 from llm_graph_optimizer.language_models.helpers.language_model_config import Config
+from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
 from llm_graph_optimizer.operations.filter_operation import FilterOperation
 from llm_graph_optimizer.operations.pack_unpack_operations import PackOperation
 from llm_graph_optimizer.schedulers.schedulers import Scheduler
@@ -105,13 +106,15 @@ def tot_controller(num_branches: int = 20, improvement_levels: int = 2) -> Contr
     tot_graph.add_edge(Edge(keep_best_nodes[-1], end_node, "score", "score"))
     tot_graph.add_edge(Edge(start_node, end_node, "expected_output", "expected_output"))
 
+    tot_graph.snapshot.view(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
 
-    tot_graph.view_graph(show_keys=True, use_pyvis=True)
+    process_measurement = ProcessMeasurement(graph_of_operations=tot_graph)
     # Initialize the controller
     tot_controller = Controller(
         graph_of_operations=tot_graph,
         scheduler=Scheduler.BFS,
-        max_concurrent=5
+        max_concurrent=5,
+        process_measurement=process_measurement
     )
 
     return tot_controller

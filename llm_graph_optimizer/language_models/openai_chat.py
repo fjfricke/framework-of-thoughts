@@ -1,10 +1,11 @@
+from time import perf_counter
 from openai import AsyncOpenAI, OpenAIError
 import backoff
 import os
 
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
 from llm_graph_optimizer.language_models.helpers.language_model_config import Config
-from llm_graph_optimizer.language_models.helpers.query_metadata import QueryMetadata
+from llm_graph_optimizer.measurement.measurement import Measurement
 
 
 class OpenAIChat(AbstractLanguageModel):
@@ -33,16 +34,17 @@ class OpenAIChat(AbstractLanguageModel):
         self.client = AsyncOpenAI(api_key=api_key)
 
     @backoff.on_exception(backoff.expo, OpenAIError, max_time=10, max_tries=6)
-    async def _raw_query(self, prompt: str) -> tuple[str, QueryMetadata]:
+    async def _raw_query(self, prompt: str) -> tuple[str, Measurement | None]:
         """
         Query the OpenAI ChatCompletion API and return metadata.
 
         :param prompt: The input prompt for the model.
-        :return: QueryMetadata containing token counts and pricing information.
+        :return: The response and the measurement.
         """
         # Prepare the messages for the ChatCompletion API
         messages = [{"role": "user", "content": prompt}]
 
+        start_time = perf_counter()
         # Call the OpenAI ChatCompletion API
         response = await self.client.chat.completions.create(
             model=self.model,
@@ -51,24 +53,24 @@ class OpenAIChat(AbstractLanguageModel):
             max_tokens=self._config.max_tokens,
             stop=self._config.stop
         )
+        duration = perf_counter() - start_time
 
         # Extract token usage from the response
-        usage = response.usage
-        request_tokens = usage.prompt_tokens
-        response_tokens = usage.completion_tokens
-
-        metadata = QueryMetadata(
-            request_tokens=request_tokens,
-            response_tokens=response_tokens,
-            request_price_per_token=self.request_price_per_token,
-            response_price_per_token=self.response_price_per_token
+        measurement = Measurement(
+            request_tokens=response.usage.prompt_tokens,
+            response_tokens=response.usage.completion_tokens,
+            total_tokens=response.usage.total_tokens,
+            request_cost=response.usage.prompt_tokens * self.request_price_per_token,
+            response_cost=response.usage.completion_tokens * self.response_price_per_token,
+            total_cost=response.usage.prompt_tokens * self.request_price_per_token + response.usage.completion_tokens * self.response_price_per_token,
+            execution_duration=duration,
+            execution_cost=self._execution_cost
         )
 
-        # Calculate pricing
-        return response.choices[0].message.content, metadata
+        return response.choices[0].message.content, measurement
 
     @backoff.on_exception(backoff.expo, OpenAIError, max_time=10, max_tries=6)
-    async def _raw_query_with_logprobs(self, prompt: str) -> tuple[list[str, float], QueryMetadata]:
+    async def _raw_query_with_logprobs(self, prompt: str) -> tuple[list[str, float], Measurement | None]:
         """
         Query the OpenAI Legacy Completions API and return metadata.
 
@@ -77,6 +79,7 @@ class OpenAIChat(AbstractLanguageModel):
 
         messages = [{"role": "user", "content": prompt}]
         
+        start_time = perf_counter()
         response = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,
@@ -85,14 +88,21 @@ class OpenAIChat(AbstractLanguageModel):
             max_tokens=self._config.max_tokens,
             stop=self._config.stop
         )
+        duration = perf_counter() - start_time
 
         output_with_logprobs = [(content.token, content.logprob) for content in response.choices[0].logprobs.content]
-        return output_with_logprobs, QueryMetadata(
+
+        measurement = Measurement(
             request_tokens=response.usage.prompt_tokens,
             response_tokens=response.usage.completion_tokens,
-            request_price_per_token=self.request_price_per_token,
-            response_price_per_token=self.response_price_per_token
+            total_tokens=response.usage.total_tokens,
+            request_cost=response.usage.prompt_tokens * self.request_price_per_token,
+            response_cost=response.usage.completion_tokens * self.response_price_per_token,
+            total_cost=response.usage.prompt_tokens * self.request_price_per_token + response.usage.completion_tokens * self.response_price_per_token,
+            execution_cost=self._execution_cost,
+            execution_duration=duration
         )
+        return output_with_logprobs, measurement
 
 
 if __name__ == "__main__":

@@ -4,7 +4,8 @@ from examples.hotpotqa.programs.operations.reasoning.child_aggregate import Chil
 from examples.hotpotqa.programs.utils import find_dependencies
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
 from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartitions
-from llm_graph_optimizer.graph_of_operations.types import Dynamic, Edge, ManyToOne, StateNotSet
+from llm_graph_optimizer.graph_of_operations.types import Dynamic, Edge, ManyToOne, ReasoningState, StateNotSet
+from llm_graph_optimizer.measurement.measurement import Measurement
 from llm_graph_optimizer.operations.abstract_operation import AbstractOperation, AbstractOperationFactory
 from llm_graph_optimizer.operations.end import End
 from llm_graph_optimizer.operations.filter_operation import FilterOperation
@@ -23,7 +24,7 @@ class UnderstandingGraphUpdating(AbstractOperation):
         self.child_aggregate_op = child_aggregate_op
         self.understanding_op = understanding_op
 
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: dict[str | int, any]) -> dict[str | int, any]:
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement]:
         
 
         # get state data
@@ -132,7 +133,7 @@ class UnderstandingGraphUpdating(AbstractOperation):
                 output_reasoning_states[f"subquestion_{i}"] = subquestion
                 understanding_nodes.append(understanding_node)
                 
-        return output_reasoning_states
+        return output_reasoning_states, None
     
 if __name__ == "__main__":
     import asyncio

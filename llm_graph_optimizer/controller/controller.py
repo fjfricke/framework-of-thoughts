@@ -3,24 +3,27 @@ import random
 import time
 from typing import Callable
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
+from llm_graph_optimizer.graph_of_operations.types import ReasoningState
+from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
 from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
 from llm_graph_optimizer.operations.helpers.exceptions import OperationFailed
 from llm_graph_optimizer.operations.helpers.node_state import NodeState
 import logging
 
 class Controller:
-    def __init__(self, graph_of_operations: GraphOfOperations, scheduler: Callable[[GraphOfOperations], list[AbstractOperation]], max_concurrent: int = 3):
+    def __init__(self, graph_of_operations: GraphOfOperations, scheduler: Callable[[GraphOfOperations], list[AbstractOperation]], max_concurrent: int = 3, process_measurement: ProcessMeasurement = None):
         self.graph_of_operations = graph_of_operations
         self.scheduler = scheduler
         # self.graph_over_time = []
         self.max_concurrent = max_concurrent
         self.logger = logging.getLogger(__name__)
+        self.process_measurement = process_measurement
 
     def initialize_input(self, input: dict[str, any]):
         self.graph_of_operations.start_node.node_state = NodeState.PROCESSABLE
         self.graph_of_operations.start_node.set_input_reasoning_states(input)
 
-    async def execute(self, input: dict[str, any], debug_params = {}):
+    async def execute(self, input: dict[str, any], debug_params = {}) -> tuple[ReasoningState, ProcessMeasurement]:
         """
         Execute operations in the graph using the scheduler and an async queue.
         :param input: Initial input for the graph.
@@ -50,7 +53,9 @@ class Controller:
                     break
                 self.logger.debug("Processing operation: %s", operation.name)
                 try:
-                    await operation.execute(self.graph_of_operations)
+                    measurement = await operation.execute(self.graph_of_operations)
+                    if self.process_measurement:
+                        self.process_measurement.add_measurement(operation, measurement)
                     # self.graph_of_operations.view_graph_debug(output_name=f"debug_{time.time()}.html")
                     self.logger.debug("Operation %s completed successfully.", operation.name)
                     operation.node_state = NodeState.DONE
@@ -113,4 +118,4 @@ class Controller:
             worker_task.cancel()
 
         self.logger.debug("Returning final input reasoning states.")
-        return self.graph_of_operations.get_input_reasoning_states(self.graph_of_operations.end_node)
+        return self.graph_of_operations.get_input_reasoning_states(self.graph_of_operations.end_node), self.process_measurement

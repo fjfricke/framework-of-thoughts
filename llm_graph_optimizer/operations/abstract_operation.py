@@ -3,9 +3,11 @@ import copy
 import logging
 from typing import Callable, get_origin
 from typeguard import TypeCheckError, check_type
+import time
 
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations, GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import Dynamic, ManyToOne, ReasoningState, ReasoningStateType, StateNotSet
+from llm_graph_optimizer.measurement.measurement import Measurement
 from .helpers.exceptions import OperationFailed
 from .helpers.node_state import NodeState
 
@@ -26,10 +28,10 @@ class AbstractOperation(ABC):
         self.name = name or self.__class__.__name__
 
     @abstractmethod
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> ReasoningState:
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement | None]:
         pass
 
-    async def execute(self, graph: GraphOfOperations) -> None:
+    async def execute(self, graph: GraphOfOperations) -> Measurement:
         
         input_reasoning_states = graph.get_input_reasoning_states(self)
         
@@ -59,7 +61,14 @@ class AbstractOperation(ABC):
             #         raise TypeError(f"Elements of input '{key}' must be of type {element_type}")
 
         partitions = graph.partitions(self)
-        result = await self._execute(partitions, input_reasoning_states)
+        start_time = time.perf_counter()
+        result, measurement = await self._execute(partitions, input_reasoning_states)
+        end_time = time.perf_counter()
+
+        logging.info(f"Execution time for {self.name}: {end_time - start_time:.4f} seconds")
+
+        if not measurement:
+            measurement = Measurement()
 
         # Validate result
         if not isinstance(result, dict):
@@ -85,5 +94,6 @@ class AbstractOperation(ABC):
         self.output_reasoning_states = result
         logging.debug(f"Output reasoning states: {self.output_reasoning_states} for operation {self.name}")
         graph.update_edge_values(self, result)
+        return measurement
 
 AbstractOperationFactory = Callable[[], AbstractOperation]
