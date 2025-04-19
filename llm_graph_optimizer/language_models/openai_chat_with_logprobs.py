@@ -6,14 +6,14 @@ import os
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
 from llm_graph_optimizer.language_models.helpers.language_model_config import Config, LLMResponseType
 from llm_graph_optimizer.measurement.measurement import Measurement
-
+from llm_graph_optimizer.language_models.cache.cache import Cache
 
 class OpenAIChatWithLogprobs(AbstractLanguageModel):
     """
     Implementation of AbstractLanguageModel using OpenAI's ChatCompletion API.
     """
 
-    def __init__(self, api_key=None, model: str = "gpt-4", request_price_per_token: float = 0.03, response_price_per_token: float = 0.06, config: Config = Config(), execution_cost: float = 1):
+    def __init__(self, api_key=None, model: str = "gpt-4", request_price_per_token: float = 0.03, response_price_per_token: float = 0.06, config: Config = Config(), execution_cost: float = 1, cache: Cache = None):
         """
         Initialize the OpenAIChat model.
 
@@ -22,7 +22,7 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
         :param request_price_per_token: Price per token for requests.
         :param response_price_per_token: Price per token for responses.
         """
-        super().__init__(config, LLMResponseType.TOKENS_AND_LOGPROBS, execution_cost)
+        super().__init__(config, LLMResponseType.TOKENS_AND_LOGPROBS, execution_cost, cache)
         api_key = api_key or os.environ.get("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("API key is not set. Please provide it or set the 'OPENAI_API_KEY' environment variable.")

@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from enum import Enum
 from typing import Union
+import json
 
 
 @dataclass
@@ -11,6 +12,9 @@ class Config:
     temperature: float = None
     max_tokens: int = None
     stop: Union[str, list[str]] = None
+
+    def __hash__(self):
+        return hash(json.dumps(asdict(self), sort_keys=True))
 
 
 class LLMResponseType(Enum):

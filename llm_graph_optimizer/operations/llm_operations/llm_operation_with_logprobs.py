@@ -4,7 +4,7 @@ from llm_graph_optimizer.graph_of_operations.types import ReasoningStateType, Re
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
 from llm_graph_optimizer.language_models.helpers.language_model_config import LLMResponseType
 from llm_graph_optimizer.measurement.measurement import Measurement
-
+from llm_graph_optimizer.language_models.cache.types import CacheSeed
 from ..helpers.exceptions import OperationFailed
 from ..abstract_operation import AbstractOperation
 
@@ -14,7 +14,7 @@ class LLMOperationWithLogprobs(AbstractOperation):
     LLM operation.
     """
 
-    def __init__(self, llm: AbstractLanguageModel, prompter: Callable[..., str], parser: Callable[[list[tuple[str, float]]], dict[str, any]], use_cache: bool = True, params: dict = None, input_types: ReasoningStateType = None, output_types: ReasoningStateType = None, name: str = None):
+    def __init__(self, llm: AbstractLanguageModel, prompter: Callable[..., str], parser: Callable[[list[tuple[str, float]]], dict[str, any]], use_cache: bool = True, params: dict = None, input_types: ReasoningStateType = None, output_types: ReasoningStateType = None, name: str = None, cache_seed: CacheSeed = None):
         """
         Initialize the BaseLLMOperation.
 
@@ -31,6 +31,7 @@ class LLMOperationWithLogprobs(AbstractOperation):
         self.prompter = prompter
         self.parser = parser
         self.use_cache = use_cache
+        self.cache_seed = cache_seed
         super().__init__(input_types=input_types, output_types=output_types, params=params, name=name)
 
     async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement]:
@@ -39,7 +40,7 @@ class LLMOperationWithLogprobs(AbstractOperation):
             prompt = self.prompter(**input_reasoning_states)
             
             # Query the language model
-            response, measurement = await self.llm.query(prompt=prompt, use_cache=self.use_cache)
+            response, measurement = await self.llm.query(prompt=prompt, use_cache=self.use_cache, cache_seed=self.cache_seed)
             
             # Pass the response to the parser
             return self.parser(response), measurement
