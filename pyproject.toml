@@ -19,10 +19,15 @@ bm25s = "^0.2.11"
 jupyterlab = "^4.4.0"
 ruff = "^0.11.6"
 pre-commit = "^4.2.0"
+optuna = "^4.3.0"
+optuna-dashboard = "^0.18.0"
+numpy = "^2.2.5"
 
 [tool.poetry.extras]
-examples = ["bm25s"]
-dev = ["jupyterlab", "ruff", "pre-commit"]
+examples = ["jupyterlab", "bm25s"]
+dataset = ["numpy"]
+optimizer = ["numpy", "optuna", "optuna-dashboard"]
+dev = ["ruff", "pre-commit"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

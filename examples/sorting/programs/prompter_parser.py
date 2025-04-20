@@ -2,6 +2,7 @@
 import ast
 import logging
 from typing import TypedDict
+from collections import Counter
 
 from llm_graph_optimizer.graph_of_operations.types import ReasoningState
 
@@ -165,5 +166,12 @@ def scoring_function(output: list[int], expected_output: list[int]) -> int:
         return 300  # Return a high error score in case of failure
     
 def filter_function(outputs: list[list[int]], scores: list[int]) -> ReasoningState:
-    min_output, min_score = min(zip(outputs, scores), key=lambda x: x[1])
-    return {"output": min_output, "score": min_score}
+    # Flatten the outputs and count occurrences
+    flattened_outputs = [tuple(output) for output in outputs]
+    most_common_output, _ = Counter(flattened_outputs).most_common(1)[0]
+
+    # Find the corresponding score for the most common output
+    index = outputs.index(list(most_common_output))
+    most_common_score = scores[index]
+
+    return {"output": list(most_common_output), "score": most_common_score}
