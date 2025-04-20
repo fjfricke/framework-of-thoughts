@@ -1,6 +1,5 @@
 from types import NoneType
 from examples.hotpotqa.programs.utils import find_dependencies, replace_dependencies
-from typing import Callable
 
 from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import ManyToOne, ReasoningState

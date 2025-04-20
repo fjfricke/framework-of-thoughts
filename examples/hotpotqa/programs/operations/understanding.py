@@ -1,5 +1,5 @@
 import logging
-import re
+
 from examples.hotpotqa.programs.operations.reasoning.child_aggregate import ChildAggregateReasoning
 from examples.hotpotqa.programs.utils import find_dependencies
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations

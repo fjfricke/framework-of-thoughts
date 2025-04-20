@@ -4,10 +4,9 @@ import bm25s
 from examples.hotpotqa.programs.utils import find_dependencies, replace_dependencies
 
 from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartitions
-from llm_graph_optimizer.graph_of_operations.types import ManyToOne, ReasoningState
+from llm_graph_optimizer.graph_of_operations.types import ReasoningState
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
 from llm_graph_optimizer.language_models.openai_chat import OpenAIChat
-from llm_graph_optimizer.operations.helpers.exceptions import OperationFailed
 from llm_graph_optimizer.operations.llm_operations.llm_operation_with_logprobs import LLMOperationWithLogprobs
 
 def get_retriever(save_dir: Path):

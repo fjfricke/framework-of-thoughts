@@ -2,13 +2,13 @@
 from llm_graph_optimizer.controller.controller import Controller
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
 from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
+from llm_graph_optimizer.operations.base_operations.end import End
+from llm_graph_optimizer.operations.base_operations.score_operation import ScoreOperation
+from llm_graph_optimizer.operations.base_operations.start import Start
 from llm_graph_optimizer.schedulers.schedulers import Scheduler
-from examples.sorting.programs.prompter_parser import generate_prompt, generate_prompt_cot, generate_parser, scoring_function
+from examples.sorting.programs.prompter_parser import generate_prompt, generate_parser, scoring_function
 from llm_graph_optimizer.language_models.openai_chat import OpenAIChat
 from llm_graph_optimizer.operations.llm_operations import BaseLLMOperation
-from llm_graph_optimizer.operations.score_operation import ScoreOperation
-from llm_graph_optimizer.operations.start import Start
-from llm_graph_optimizer.operations.end import End
 from llm_graph_optimizer.graph_of_operations.types import Edge
 
 
@@ -24,14 +24,6 @@ def io_controller() -> Controller:
     generate_node = BaseLLMOperation(
         llm=llm,
         prompter=generate_prompt,
-        parser=generate_parser,
-        input_types={"input_list": list[int]},
-        output_types={"output": list[int]}
-    )
-
-    generate_cot_node = BaseLLMOperation(
-        llm=llm,
-        prompter=generate_prompt_cot,
         parser=generate_parser,
         input_types={"input_list": list[int]},
         output_types={"output": list[int]}

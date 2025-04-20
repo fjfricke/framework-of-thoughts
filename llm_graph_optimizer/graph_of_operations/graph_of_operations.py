@@ -1,7 +1,5 @@
 from typing import TYPE_CHECKING, get_origin
 import networkx as nx
-from typeguard import TypeCheckError, check_type
-import pickle
 from .base_graph import BaseGraph
 from .types import Edge, NodeKey, ManyToOne
 from llm_graph_optimizer.operations.helpers.node_state import NodeState

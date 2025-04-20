@@ -1,4 +1,4 @@
-from dataclasses import fields, asdict
+from dataclasses import fields
 from typing import Dict, get_origin
 
 from llm_graph_optimizer.graph_of_operations.base_graph import BaseGraph

@@ -6,7 +6,7 @@ from llm_graph_optimizer.measurement.process_measurement import ProcessMeasureme
 from llm_graph_optimizer.operations.filter_operation import FilterOperation
 from llm_graph_optimizer.operations.pack_unpack_operations import PackOperation
 from llm_graph_optimizer.schedulers.schedulers import Scheduler
-from examples.sorting.programs.prompter_parser import filter_function, generate_prompt, generate_prompt_cot, generate_parser, scoring_function, tot_improve_prompt
+from examples.sorting.programs.prompter_parser import filter_function, generate_prompt, generate_parser, scoring_function, tot_improve_prompt
 from llm_graph_optimizer.language_models.openai_chat import OpenAIChat
 from llm_graph_optimizer.operations.llm_operations import BaseLLMOperation
 from llm_graph_optimizer.operations.score_operation import ScoreOperation

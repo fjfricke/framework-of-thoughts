@@ -1,12 +1,7 @@
 from abc import ABC, abstractmethod
-import copy
 from numbers import Number
-from typing import TYPE_CHECKING, Callable, get_origin, TypeVar, Protocol
+from typing import TYPE_CHECKING, Callable, get_origin
 import networkx as nx
-import matplotlib.pyplot as plt
-import json
-
-from pyvis.network import Network
 
 from llm_graph_optimizer.graph_of_operations.snapshot_graph import SnapshotGraph
 
@@ -89,33 +84,6 @@ class BaseGraph(ABC):
             edge_data = edge[2]
             if edge_data["from_node_key"] in value:
                 edge_data["value"] = value[edge_data["from_node_key"]]
-
-    def view_graph_debug(self, show_keys: bool = False, show_values: bool = False, output_name: str = "debug_graph.html"):
-        nt = Network(height='750px', width='100%', directed=True, cdn_resources="remote")
-
-        # Relabel nodes to strings and remove all parameters
-        mapping = {node: str(node) for node in self._graph.nodes}
-        inverse_mapping = {v: k for k, v in mapping.items()}
-        G_copy = nx.relabel_nodes(self._graph, mapping, copy=True)
-
-        # Remove all attributes from nodes
-        for node in G_copy.nodes:
-            G_copy.nodes[node].clear()
-
-        # Remove all attributes from edges
-        for u, v, data in G_copy.edges(data=True):
-            data.clear()
-
-        # Set node label to show only node.name
-        for node in G_copy.nodes:
-            G_copy.nodes[node]['label'] = inverse_mapping[node].name
-
-        nt.from_nx(G_copy)
-
-        # Save the graph to an HTML file
-        output_path = f"graphs/{output_name}"
-        nt.save_graph(output_path)
-        print(f"Graph saved to {output_path}")
 
     def graph_table(self):
         import pandas as pd
