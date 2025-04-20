@@ -118,3 +118,5 @@ class Controller:
 
         self.logger.debug("Returning final input reasoning states.")
         return self.graph_of_operations.get_input_reasoning_states(self.graph_of_operations.end_node), self.process_measurement
+
+ControllerFactory = Callable[[], Controller]
