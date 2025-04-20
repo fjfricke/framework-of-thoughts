@@ -67,15 +67,11 @@ class AbstractOperation(ABC):
                 if key not in result:
                     raise KeyError(f"Missing output key: {key}")
                 
-                # Check the base type
-                if not isinstance(result[key], expected_type.__origin__ if hasattr(expected_type, "__origin__") else expected_type):
-                    raise TypeError(f"Output '{key}' must be of type {expected_type}, got {type(result[key])}")
+                try:
+                    check_type(result[key], expected_type)
+                except TypeCheckError as e:
+                    raise TypeError(f"Output '{key}' must be of type {expected_type}, got {type(result[key])}") from e
 
-                # If the expected_type is a parameterized generic, validate the elements
-                if hasattr(expected_type, "__args__") and isinstance(result[key], expected_type.__origin__):
-                    element_type = expected_type.__args__[0]
-                    if not all(isinstance(item, element_type) for item in result[key]):
-                        raise TypeError(f"Elements of output '{key}' must be of type {element_type}")
 
         self.output_reasoning_states = result
         logging.debug(f"Output reasoning states: {self.output_reasoning_states} for operation {self.name}")
