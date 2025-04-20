@@ -7,7 +7,7 @@ class MathDatasetGenerator:
         self.num_questions = num_questions
 
     def generate(self):
-        operations = ['+', '-', '*', '//', '**']  # Added exponentiation for complexity
+        operations = ['*', '//', '**']  # Added exponentiation for complexity
         with open(self.file_path, 'w') as f:
             for _ in range(self.num_questions):
                 a = random.randint(100, 1000)  # Increased range for larger numbers
@@ -26,5 +26,5 @@ class MathDatasetGenerator:
                 f.write(f"{a}{operation}{b}, {answer}\n")
 
 if __name__ == "__main__":
-    generator = MathDatasetGenerator(Path(__file__).parent / "dataset" / "test_dataset.txt", num_questions=100)
+    generator = MathDatasetGenerator(Path(__file__).parent / "dataset" / "test_dataset.txt", num_questions=1000)
     generator.generate() 

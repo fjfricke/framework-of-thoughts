@@ -9,7 +9,7 @@ from llm_graph_optimizer.language_models.cache.cache import CacheContainer
 from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
 from llm_graph_optimizer.optimizer.dataset_evaluator import DatasetEvaluator, DatasetEvaluatorParameters
 
-dataset_path = Path(__file__).parent / "test_dataset.txt"
+dataset_path = Path(__file__).parent / "dataset" / "test_dataset.txt"
 dataloader = TestDatasetLoaderWithYield(dataset_path)
 
 logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -21,8 +21,8 @@ def calculate_score(reasoning_state: ReasoningState, measurement: ProcessMeasure
 parameters = DatasetEvaluatorParameters(
     min_runs=10,
     max_runs=500,
-    confidence_level=0.90,
-    acceptable_ci_width=0.15
+    confidence_level=0.95,
+    acceptable_ci_width=0.05
 )
 
 if __name__ == "__main__":
