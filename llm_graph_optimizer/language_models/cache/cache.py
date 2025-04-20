@@ -54,14 +54,20 @@ class CacheContainer:
         self.persistent_cache: Cache = Cache()
 
     @classmethod
-    def from_persistent_cache_file(cls, file_path: str) -> "CacheContainer":
+    def from_persistent_cache_file(cls, file_path: str, skip_on_file_not_found: bool = False) -> "CacheContainer":
         """
         Loads the persistent cache from a file and returns a new Cache object.
         """
-        with open(file_path, "rb") as f:
-            cache = CacheContainer()
-            cache.persistent_cache = pickle.load(f)
-            return cache
+        try:
+            with open(file_path, "rb") as f:
+                cache = CacheContainer()
+                cache.persistent_cache = pickle.load(f)
+                return cache
+        except FileNotFoundError:
+            if skip_on_file_not_found:
+                return CacheContainer()
+            else:
+                raise
         
     def save_persistent_cache(self, file_path: str):
         """
