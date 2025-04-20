@@ -1,7 +1,7 @@
 from pathlib import Path
 from types import NoneType
 import bm25s
-from examples.hotpotqa.programs.utils import find_dependencies, replace_dependencies
+from examples.hotpotqa.programs.operations.utils import find_dependencies, replace_dependencies
 
 from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import ReasoningState

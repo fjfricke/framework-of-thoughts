@@ -1,7 +1,7 @@
 import logging
 
 from examples.hotpotqa.programs.operations.reasoning.child_aggregate import ChildAggregateReasoning
-from examples.hotpotqa.programs.utils import find_dependencies
+from examples.hotpotqa.programs.operations.utils import find_dependencies
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
 from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import Dynamic, Edge, ManyToOne, ReasoningState, StateNotSet

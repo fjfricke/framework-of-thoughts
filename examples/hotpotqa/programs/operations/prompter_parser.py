@@ -1,4 +1,4 @@
-from examples.hotpotqa.programs.utils import parse_tree_and_extract_logprobs
+from examples.hotpotqa.programs.operations.utils import parse_tree_and_extract_logprobs
 
 
 def understanding_prompt(question: str):

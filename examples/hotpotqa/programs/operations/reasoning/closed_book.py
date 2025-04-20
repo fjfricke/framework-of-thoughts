@@ -1,5 +1,5 @@
 from types import NoneType
-from examples.hotpotqa.programs.utils import find_dependencies, replace_dependencies
+from examples.hotpotqa.programs.operations.utils import find_dependencies, replace_dependencies
 
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
 from llm_graph_optimizer.language_models.openai_chat import OpenAIChat

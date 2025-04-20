@@ -6,7 +6,7 @@ from examples.hotpotqa.programs.operations.reasoning.child_aggregate import Chil
 from examples.hotpotqa.programs.operations.reasoning.closed_book import ClosedBookReasoning
 from examples.hotpotqa.programs.operations.reasoning.open_book import OpenBookReasoning, get_retriever
 from examples.hotpotqa.programs.operations.understanding import UnderstandingGraphUpdating
-from examples.hotpotqa.programs.prompter_parser import understanding_parser, understanding_prompt
+from examples.hotpotqa.programs.operations.prompter_parser import understanding_parser, understanding_prompt
 from llm_graph_optimizer.controller.controller import Controller
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
 from llm_graph_optimizer.graph_of_operations.types import Edge
