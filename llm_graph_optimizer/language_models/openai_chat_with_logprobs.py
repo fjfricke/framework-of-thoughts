@@ -1,10 +1,11 @@
-from time import perf_counter
 from openai import AsyncOpenAI, OpenAIError
 import backoff
 import os
+from httpx import AsyncClient
 
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
 from llm_graph_optimizer.language_models.helpers.language_model_config import Config, LLMResponseType
+from llm_graph_optimizer.language_models.helpers.last_request_timer import TimingAsyncHTTPTransport
 from llm_graph_optimizer.measurement.measurement import Measurement
 from llm_graph_optimizer.language_models.cache.cache import CacheContainer
 
@@ -30,8 +31,9 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
         self.request_price_per_token = request_price_per_token
         self.response_price_per_token = response_price_per_token
 
-        # Set the OpenAI API key
-        self.client = AsyncOpenAI(api_key=api_key)
+        transport = TimingAsyncHTTPTransport()
+        http_client = AsyncClient(transport=transport)
+        self.client = AsyncOpenAI(api_key=api_key, http_client=http_client)
 
     @property
     def additional_cache_identifiers(self) -> dict[str, object]:
@@ -54,7 +56,6 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
 
         messages = [{"role": "user", "content": prompt}]
         
-        start_time = perf_counter()
         response = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,
@@ -63,7 +64,7 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
             max_tokens=self._config.max_tokens,
             stop=self._config.stop
         )
-        duration = perf_counter() - start_time
+        duration = self.client._client._transport.last_duration
 
         output_with_logprobs = [(content.token, content.logprob) for content in response.choices[0].logprobs.content]
 

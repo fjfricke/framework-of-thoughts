@@ -1,10 +1,10 @@
-from time import perf_counter
-from openai import AsyncOpenAI, OpenAIError
-import backoff
+from httpx import AsyncClient
+from openai import AsyncOpenAI
 import os
 
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
 from llm_graph_optimizer.language_models.helpers.language_model_config import Config, LLMResponseType
+from llm_graph_optimizer.language_models.helpers.last_request_timer import TimingAsyncHTTPTransport
 from llm_graph_optimizer.measurement.measurement import Measurement
 from llm_graph_optimizer.language_models.cache.cache import CacheContainer
 
@@ -30,8 +30,9 @@ class OpenAIChat(AbstractLanguageModel):
         self.request_price_per_token = request_price_per_token
         self.response_price_per_token = response_price_per_token
 
-        # Set the OpenAI API key
-        self.client = AsyncOpenAI(api_key=api_key)
+        transport = TimingAsyncHTTPTransport()
+        http_client = AsyncClient(transport=transport)
+        self.client = AsyncOpenAI(api_key=api_key, http_client=http_client)
 
     @property
     def additional_cache_identifiers(self) -> dict[str, object]:
@@ -44,7 +45,6 @@ class OpenAIChat(AbstractLanguageModel):
             "response_price_per_token": self.response_price_per_token
         }
 
-    @backoff.on_exception(backoff.expo, OpenAIError, max_time=10, max_tries=6)
     async def _raw_query(self, prompt: str) -> tuple[str, Measurement | None]:
         """
         Query the OpenAI ChatCompletion API and return metadata.
@@ -55,7 +55,6 @@ class OpenAIChat(AbstractLanguageModel):
         # Prepare the messages for the ChatCompletion API
         messages = [{"role": "user", "content": prompt}]
 
-        start_time = perf_counter()
         # Call the OpenAI ChatCompletion API
         response = await self.client.chat.completions.create(
             model=self.model,
@@ -64,7 +63,7 @@ class OpenAIChat(AbstractLanguageModel):
             max_tokens=self._config.max_tokens,
             stop=self._config.stop
         )
-        duration = perf_counter() - start_time
+        duration = self.client._client._transport.last_duration
 
         # Extract token usage from the response
         measurement = Measurement(
