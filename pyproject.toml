@@ -1,42 +1,30 @@
-[project]
+[tool.poetry]
 name = "llm_graph_optimizer"
 version = "0.1.0"
 description = ""
-authors = [
-    {name = "Felix Fricke",email = "f.fricke@tum.de"}
-]
+authors = ["Felix Fricke <f.fricke@tum.de>"]
 readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "openai (>=1.70.0,<2.0.0)",
-    "backoff (>=2.2.1,<3.0.0)",
-    "networkx (>=3.4.2,<4.0.0)",
-    "matplotlib (>=3.10.1,<4.0.0)",
-    "pyvis (>=0.3.2,<0.4.0)",
-    "bm25s (>=0.2.11,<0.3.0)",
-    "typeguard (>=4.4.2,<5.0.0)",
-    "pandas (>=2.2.3,<3.0.0)",
-    "plotly (>=6.0.1,<7.0.0)",
-    "ipysigma (>=0.24.5,<0.25.0)",
-    "panel (>=1.6.2,<2.0.0)",
-    "watchfiles (>=1.0.5,<2.0.0)",
-    "jupyterlab (>=4.4.0,<5.0.0)",
-    "dill (>=0.4.0,<0.5.0)",
-    "ipywidgets-bokeh (>=1.6.0,<2.0.0)",
-]
+packages = [{ include = "llm_graph_optimizer" }]
 
+[tool.poetry.dependencies]
+python = ">=3.12,<4.0"
+openai = ">=1.70.0,<2.0.0"
+backoff = ">=2.2.1,<3.0.0"
+networkx = ">=3.4.2,<4.0.0"
+matplotlib = ">=3.10.1,<4.0.0"
+pyvis = ">=0.3.2,<0.4.0"
+typeguard = ">=4.4.2,<5.0.0"
+pandas = ">=2.2.3,<3.0.0"
+bm25s = ">=0.2.11,<0.3.0"
+jupyterlab = ">=4.4.0,<5.0.0"
+
+[tool.poetry.extras]
+examples = ["bm25s"]
+dev = ["jupyterlab"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.poetry]
-packages = [
-    { include = "llm_graph_optimizer" },
-]
-
-[tool.poetry.dependencies]
-python = ">=3.12,<4.0"
 
 [tool.ruff]
 ignore = ["E731"]
