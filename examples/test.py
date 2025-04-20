@@ -5,7 +5,7 @@ import asyncio
 from llm_graph_optimizer.controller.controller import Controller
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
 from llm_graph_optimizer.graph_of_operations.types import Edge
-from llm_graph_optimizer.language_models.cache.cache import Cache
+from llm_graph_optimizer.language_models.cache.cache import CacheContainer
 from llm_graph_optimizer.language_models.openai_chat import OpenAIChat
 from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
 from llm_graph_optimizer.operations.base_operations.end import End
@@ -19,8 +19,7 @@ logger = logging.getLogger('llm_graph_optimizer.language_models.abstract_languag
 logger.setLevel(logging.DEBUG)
 
 # Initialize the language model
-# cache = Cache.from_file("cache.pkl")
-cache = Cache()
+cache = CacheContainer.from_persistent_cache_file("cache.pkl")
 llm = OpenAIChat(model="gpt-4o", cache=cache)
 
 # Initialize the start node
@@ -86,7 +85,7 @@ async def run_controller():
     answer, measurements = await controller.execute(input={"start": "Hello, world!"})
     print(answer)
     print(measurements)
-    # cache.save("cache.pkl")
+    # cache.save_persistent_cache("cache.pkl")
     # graph.view_graph()
 
 asyncio.run(run_controller())

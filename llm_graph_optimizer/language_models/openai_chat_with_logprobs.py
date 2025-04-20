@@ -6,14 +6,14 @@ import os
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
 from llm_graph_optimizer.language_models.helpers.language_model_config import Config, LLMResponseType
 from llm_graph_optimizer.measurement.measurement import Measurement
-from llm_graph_optimizer.language_models.cache.cache import Cache
+from llm_graph_optimizer.language_models.cache.cache import CacheContainer
 
 class OpenAIChatWithLogprobs(AbstractLanguageModel):
     """
     Implementation of AbstractLanguageModel using OpenAI's ChatCompletion API.
     """
 
-    def __init__(self, api_key=None, model: str = "gpt-4", request_price_per_token: float = 0.03, response_price_per_token: float = 0.06, config: Config = Config(), execution_cost: float = 1, cache: Cache = None):
+    def __init__(self, api_key=None, model: str = "gpt-4", request_price_per_token: float = 0.03, response_price_per_token: float = 0.06, config: Config = Config(), execution_cost: float = 1, cache: CacheContainer = None):
         """
         Initialize the OpenAIChat model.
 

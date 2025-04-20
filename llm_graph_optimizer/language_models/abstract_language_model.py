@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import logging
-from llm_graph_optimizer.language_models.cache.cache import Cache, CacheCategory
+from llm_graph_optimizer.language_models.cache.cache import CacheContainer, CacheCategory, CacheEntry, CacheKey
 from llm_graph_optimizer.language_models.cache.types import LLMCacheKey, CacheSeed
 from llm_graph_optimizer.measurement.measurement import Measurement, MeasurementsWithCache
 from llm_graph_optimizer.types import LLMOutput
@@ -13,7 +13,7 @@ class AbstractLanguageModel(ABC):
     """
 
     @abstractmethod
-    def __init__(self, config: Config, llm_response_type: LLMResponseType = LLMResponseType.TEXT, execution_cost: float = 1, cache: Cache = None):
+    def __init__(self, config: Config, llm_response_type: LLMResponseType = LLMResponseType.TEXT, execution_cost: float = 1, cache: CacheContainer = None):
         self._config = config
         self._execution_cost = execution_cost
         self.llm_response_type = llm_response_type
@@ -53,9 +53,9 @@ class AbstractLanguageModel(ABC):
 
         # Check if the prompt is in the cache
         if use_cache and self.cache:
-            cache_entry, cache_category = self.cache.get(self.cache_identifiers, prompt, cache_seed)
+            cache_entry, cache_category = self.cache.get(CacheKey(self.cache_identifiers, prompt, cache_seed))
             if cache_entry:
-                response, no_cache_measurement = cache_entry
+                response, no_cache_measurement = cache_entry.result, cache_entry.measurement
                 self.logger.debug(f"Cache hit for {self.cache_identifiers} with prompt {prompt} and cache seed {cache_seed}.")
                 if cache_category == CacheCategory.PROCESS:
                     measurements = MeasurementsWithCache(
@@ -79,7 +79,7 @@ class AbstractLanguageModel(ABC):
         # Store the result in the cache
         if use_cache and self.cache:
             self.logger.debug(f"Cache miss for {self.cache_identifiers} with prompt {prompt} and cache seed {cache_seed}. Storing result in cache.")
-            self.cache.set(self.cache_identifiers, prompt, cache_seed, (response, measurement))
+            self.cache.set(CacheKey(self.cache_identifiers, prompt, cache_seed), CacheEntry(response, measurement))
 
         return response, MeasurementsWithCache(
             no_cache=measurement,

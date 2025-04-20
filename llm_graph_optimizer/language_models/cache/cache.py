@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 import logging
 import pickle
 from enum import Enum
@@ -9,51 +10,85 @@ class CacheCategory(Enum):
     PROCESS = "process"
     PERSISTENT = "persistent"
 
+@dataclass
+class CacheKey:
+    cache_key: LLMCacheKey
+    prompt: str
+    cache_seed: CacheSeed
 
+    def __hash__(self):
+        return hash((self.cache_key, self.prompt, self.cache_seed))
+
+@dataclass
+class CacheEntry:
+    result: tuple[LLMOutput, Measurement]
+    measurement: Measurement
+
+@dataclass
 class Cache:
+    entries: dict[CacheKey, CacheEntry] = field(default_factory=dict)
+
+    def get(self, cache_key: CacheKey) -> CacheEntry | None:
+        return self.entries.get(cache_key)
+    
+    def set(self, cache_key: CacheKey, cache_entry: CacheEntry):
+        self.entries[cache_key] = cache_entry
+
+    def save(self, file_path: str):
+        with open(file_path, "wb") as f:
+            pickle.dump(self.entries, f)
+
+    @classmethod
+    def from_file(cls, file_path: str) -> "Cache":
+        with open(file_path, "rb") as f:
+            return Cache(pickle.load(f))
+
+class CacheContainer:
     """
     Cache for language models calls
     """
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.process_cache: dict[tuple[LLMCacheKey, str, CacheSeed], tuple[LLMOutput, Measurement]] = {}
-        self.persistent_cache: dict[tuple[LLMCacheKey, str, CacheSeed], tuple[LLMOutput, Measurement]] = {}
+        self.process_cache: Cache = Cache()
+        self.persistent_cache: Cache = Cache()
 
     @classmethod
-    def from_file(cls, file_path: str) -> "Cache":
+    def from_persistent_cache_file(cls, file_path: str) -> "CacheContainer":
         """
         Loads the persistent cache from a file and returns a new Cache object.
         """
         with open(file_path, "rb") as f:
-            cache = Cache()
+            cache = CacheContainer()
             cache.persistent_cache = pickle.load(f)
             return cache
         
-    def save(self, file_path: str):
+    def save_persistent_cache(self, file_path: str):
         """
         Saves the persistent cache to a file.
         """
         with open(file_path, "wb") as f:
             pickle.dump(self.persistent_cache, f)
     
-    def get(self, cache_key: LLMCacheKey, prompt: str, cache_seed: CacheSeed) -> tuple[tuple[LLMOutput, Measurement] | None, CacheCategory | None]:
+    def get(self, cache_key: CacheKey) -> tuple[CacheEntry | None, CacheCategory | None]:
         """
         Get the result from the cache.
         """
-        if (cache_key, prompt, cache_seed) in self.process_cache:
-            return self.process_cache[(cache_key, prompt, cache_seed)], CacheCategory.PROCESS
-        elif (cache_key, prompt, cache_seed) in self.persistent_cache:
-            return self.persistent_cache[(cache_key, prompt, cache_seed)], CacheCategory.PERSISTENT
+        process_entry = self.process_cache.get(cache_key)
+        persistent_entry = self.persistent_cache.get(cache_key)
+        if process_entry:
+            return process_entry, CacheCategory.PROCESS
+        elif persistent_entry:
+            return persistent_entry, CacheCategory.PERSISTENT
         else:
             return None, None
         
-    def set(self, cache_key: LLMCacheKey, prompt: str, cache_seed: CacheSeed, result: tuple[LLMOutput, Measurement]):
+    def set(self, cache_key: CacheKey, cache_entry: CacheEntry):
         """
         Set the result in the cache.
         """
-        self.process_cache[(cache_key, prompt, cache_seed)] = result
-        self.persistent_cache[(cache_key, prompt, cache_seed)] = result
+        self.process_cache.set(cache_key, cache_entry)
+        self.persistent_cache.set(cache_key, cache_entry)
 
     def clear_process_cache(self):
         """
