@@ -3,6 +3,8 @@ import ast
 import logging
 from typing import TypedDict
 
+from llm_graph_optimizer.graph_of_operations.types import ReasoningState
+
 
 def generate_prompt(input_list: list[int]):
     return f"""<Instruction> Sort the following list of numbers in ascending order. Output only the sorted list of numbers, no additional text. </Instruction>
@@ -162,5 +164,6 @@ def scoring_function(output: list[int], expected_output: list[int]) -> int:
         logging.error(f"Error in scoring function: {e}")
         return 300  # Return a high error score in case of failure
     
-def filter_function(output: list) -> dict[str, any]:
-    return min(output, key=lambda x: x["score"])
+def filter_function(outputs: list[list[int]], scores: list[int]) -> ReasoningState:
+    min_output, min_score = min(zip(outputs, scores), key=lambda x: x[1])
+    return {"output": min_output, "score": min_score}

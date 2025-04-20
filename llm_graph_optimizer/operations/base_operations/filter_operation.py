@@ -11,11 +11,10 @@ class FilterOperation(AbstractOperation):
     Input_types is a dictionary of an integer to a state. Nodes should connect to 0,1,.. input_keys
     """
 
-    def __init__(self, output_types: ReasoningStateType, length: int, filter_function: Callable[[list[ReasoningState]], ReasoningState], params: dict = None, name: str = None):
-        input_types = {i: ReasoningState for i in range(length)}
+    def __init__(self, output_types: ReasoningStateType, input_types: ReasoningStateType, filter_function: Callable[..., ReasoningState], params: dict = None, name: str = None):
         self.filter_function = filter_function
         super().__init__(input_types, output_types, params, name)
 
-    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: dict[int, ReasoningState]) -> tuple[ReasoningState, Measurement | None]:
-        input_reasoning_states_list = list(input_reasoning_states.values())
-        return self.filter_function(input_reasoning_states_list), None  
+    async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement | None]:
+        filtered_reasoning_states = self.filter_function(**input_reasoning_states)
+        return filtered_reasoning_states, None

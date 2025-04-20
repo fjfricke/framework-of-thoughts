@@ -2,16 +2,12 @@ import logging
 
 from examples.hotpotqa.programs.operations.reasoning.child_aggregate import ChildAggregateReasoning
 from examples.hotpotqa.programs.operations.utils import find_dependencies
-from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
 from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import Dynamic, Edge, ManyToOne, ReasoningState, StateNotSet
 from llm_graph_optimizer.measurement.measurement import Measurement
 from llm_graph_optimizer.operations.abstract_operation import AbstractOperation, AbstractOperationFactory
 from llm_graph_optimizer.operations.base_operations.end import End
 from llm_graph_optimizer.operations.base_operations.filter_operation import FilterOperation
-from llm_graph_optimizer.operations.base_operations.pack_unpack_operations import PackOperation
-from llm_graph_optimizer.operations.base_operations.start import Start
-from llm_graph_optimizer.operations.base_operations.test_operation import TestOperation
 
 
 class UnderstandingGraphUpdating(AbstractOperation):
@@ -38,32 +34,27 @@ class UnderstandingGraphUpdating(AbstractOperation):
         dependency_answers = list(input_reasoning_states["dependency_answers"])
         output_reasoning_states = {"hqdt": hqdt, "question": current_question, "answer": StateNotSet, "question_decomposition_score": StateNotSet, "dependency_answers": dependency_answers}
 
-        def filter_operation(length: int):
-            def filter_function(input_list: list[dict[str, any]]) -> dict[str, any]:
-                return max(input_list, key=lambda x: x["decomposition_score"])
-            return FilterOperation(output_types={"answer": str, "decomposition_score": float}, length=length, filter_function=filter_function)
-
-        
-
-        pack_op = lambda: PackOperation(input_types={"answer": str, "decomposition_score": float}, output_key="packed")
+        def filter_function(answers: list[str], decomposition_scores: list[float]) -> dict[str, any]:
+            answer, decomposition_score = max(zip(answers, decomposition_scores), key=lambda x: x[1])
+            return {"answer": answer, "decomposition_score": decomposition_score}
+        filter_node = FilterOperation(output_types={"answer": str, "decomposition_score": float}, input_types={"answers": ManyToOne[str], "decomposition_scores": ManyToOne[float]}, filter_function=filter_function)
+        partitions.exclusive_descendants.add_node(filter_node)
 
         # create reasoning nodes
         open_book_node = self.open_book_op()
         partitions.exclusive_descendants.add_node(open_book_node)
         partitions.exclusive_descendants.add_edge(Edge(self, open_book_node, "question", "question"))
         partitions.exclusive_descendants.add_edge(Edge(self, open_book_node, "dependency_answers", "dependency_answers"))
-        pack_open_book_node = pack_op()
-        partitions.exclusive_descendants.add_node(pack_open_book_node)
-        partitions.exclusive_descendants.add_edge(Edge(open_book_node, pack_open_book_node, "answer", "answer"))
-        partitions.exclusive_descendants.add_edge(Edge(open_book_node, pack_open_book_node, "decomposition_score", "decomposition_score"))
+
+        partitions.exclusive_descendants.add_edge(Edge(open_book_node, filter_node, "answer", "answers"), order=0)
+        partitions.exclusive_descendants.add_edge(Edge(open_book_node, filter_node, "decomposition_score", "decomposition_scores"), order=0)
         closed_book_node = self.closed_book_op()
         partitions.exclusive_descendants.add_node(closed_book_node)
         partitions.exclusive_descendants.add_edge(Edge(self, closed_book_node, "question", "question"))
         partitions.exclusive_descendants.add_edge(Edge(self, closed_book_node, "dependency_answers", "dependency_answers"))
-        pack_closed_book_node = pack_op()
-        partitions.exclusive_descendants.add_node(pack_closed_book_node)
-        partitions.exclusive_descendants.add_edge(Edge(closed_book_node, pack_closed_book_node, "answer", "answer"))
-        partitions.exclusive_descendants.add_edge(Edge(closed_book_node, pack_closed_book_node, "decomposition_score", "decomposition_score"))
+
+        partitions.exclusive_descendants.add_edge(Edge(closed_book_node, filter_node, "answer", "answers"), order=1)
+        partitions.exclusive_descendants.add_edge(Edge(closed_book_node, filter_node, "decomposition_score", "decomposition_scores"), order=1)
         if subquestions:
             output_reasoning_states["decomposition_score"] = hqdt[current_question][1]
             child_aggregate_node = self.child_aggregate_op()
@@ -71,19 +62,9 @@ class UnderstandingGraphUpdating(AbstractOperation):
             partitions.exclusive_descendants.add_edge(Edge(self, child_aggregate_node, "question", "question"))
             partitions.exclusive_descendants.add_edge(Edge(self, child_aggregate_node, "question_decomposition_score", "question_decomposition_score"))
             partitions.exclusive_descendants.add_edge(Edge(self, child_aggregate_node, "dependency_answers", "dependency_answers"))
-            pack_child_aggregate_node = pack_op()
-            partitions.exclusive_descendants.add_node(pack_child_aggregate_node)
-            partitions.exclusive_descendants.add_edge(Edge(child_aggregate_node, pack_child_aggregate_node, "answer", "answer"))
-            partitions.exclusive_descendants.add_edge(Edge(child_aggregate_node, pack_child_aggregate_node, "decomposition_score", "decomposition_score"))
-            filter_node = filter_operation(3)
-        else:
-            filter_node = filter_operation(2)
 
-        partitions.exclusive_descendants.add_node(filter_node)
-        partitions.exclusive_descendants.add_edge(Edge(pack_open_book_node, filter_node, "packed", 0))
-        partitions.exclusive_descendants.add_edge(Edge(pack_closed_book_node, filter_node, "packed", 1))
-        if subquestions:
-            partitions.exclusive_descendants.add_edge(Edge(pack_child_aggregate_node, filter_node, "packed", 2))
+            partitions.exclusive_descendants.add_edge(Edge(child_aggregate_node, filter_node, "answer", "answers"), order=2)
+            partitions.exclusive_descendants.add_edge(Edge(child_aggregate_node, filter_node, "decomposition_score", "decomposition_scores"), order=2)
 
         # move successor edges to UnderstandingGraphUpdating nodes to filter node iff the key is "answer" or "decomposition_score"
         successor_edges = partitions.descendants.successor_edges(self)
@@ -134,27 +115,3 @@ class UnderstandingGraphUpdating(AbstractOperation):
                 understanding_nodes.append(understanding_node)
                 
         return output_reasoning_states, None
-    
-if __name__ == "__main__":
-    import asyncio
-
-    async def main():
-        
-        operation = UnderstandingGraphUpdating(
-            open_book_op=lambda: TestOperation({"question": str, "dependency_answers": list[str]}, {"answer": str, "decomposition_score": float}, name="open_book_op"),
-            closed_book_op=lambda: TestOperation({"question": str, "dependency_answers": list[str]}, {"answer": str, "decomposition_score": float}, name="closed_book_op"),
-            child_aggregate_op=lambda: TestOperation({"question": str, "question_decomposition_score": float, "dependency_answers": list[str], "subquestions": ManyToOne[str], "subquestion_answers": ManyToOne[str], "child_decomposition_scores": ManyToOne[float]}, {"answer": str, "decomposition_score": float}, name="child_aggregate_op")
-        )
-
-        graph = GraphOfOperations()
-        graph.add_node(operation)
-        start = Start(input_types={"question": str})
-        graph.add_node(start)
-        end = End(input_types={"answer": str})
-        graph.add_node(end)
-        graph.add_edge(Edge(start, operation, "question", "question"))
-        graph.add_edge(Edge(operation, end, "answer", "answer"))
-        hqdt = {'What is the combined population of the biggest 2 neighbour country of the largest country in Europe by capita?': (['What is the largest country in Europe by capita?', 'What are the two biggest neighboring countries of #1?', 'What is the combined population of #2?'], -0.0846547199021159), 'What are the two biggest neighboring countries of #1?': (['What countries border #1?', 'Which are the two biggest countries by area or population among #1?'], -0.20921424507292)}
-        await operation._execute(partitions=graph.partitions(operation), input_reasoning_states={"hqdt": hqdt, "question": "What is the combined population of the biggest 2 neighbour country of the largest country in Europe by capita?"})
-        graph.view_graph(use_pyvis=True, show_keys=True, edge_length_power=2)
-    asyncio.run(main())
