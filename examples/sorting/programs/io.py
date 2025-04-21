@@ -8,7 +8,7 @@ from llm_graph_optimizer.operations.base_operations.start import Start
 from llm_graph_optimizer.schedulers.schedulers import Scheduler
 from examples.sorting.programs.prompter_parser import generate_prompt, generate_parser, scoring_function
 from llm_graph_optimizer.language_models.openai_chat import OpenAIChat
-from llm_graph_optimizer.operations.llm_operations import BaseLLMOperation
+from llm_graph_optimizer.operations.llm_operations.base_llm_operation import BaseLLMOperation
 from llm_graph_optimizer.graph_of_operations.types import Edge
 
 
