@@ -91,10 +91,10 @@ if __name__ == "__main__":
     controller = probtree_controller()
     import asyncio
     # output = asyncio.run(controller.execute({"question": "What is 1+1?"}))
-    controller.graph_of_operations.snapshot.view(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
+    controller.graph_of_operations.snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
     output, process_measurement = asyncio.run(controller.execute({"question": "What is the combined population of the population-wise biggest 2 neighbour country of the largest country in Europe by capita?"}))
     snapshot_graph = controller.graph_of_operations.snapshot
-    snapshot_graph.view(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
+    snapshot_graph.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
     save_path = Path(os.getcwd()) / "examples" / "hotpotqa" / "output"
     snapshot_graph.save(save_path / "probtree_debug.pkl")
     print(output)

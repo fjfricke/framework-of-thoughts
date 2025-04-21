@@ -17,7 +17,7 @@ from llm_graph_optimizer.schedulers.schedulers import Scheduler
 # Initialize the language model
 
 
-def controller(cache: CacheContainer, number_of_llm_nodes: int = 3):
+def controller(cache: CacheContainer, number_of_llm_nodes: int = 3) -> Controller:
     llm = OpenAIChat(model="gpt-3.5-turbo", cache=cache, config=Config(temperature=1.0))
 
     # Initialize the start node
@@ -83,12 +83,12 @@ def controller(cache: CacheContainer, number_of_llm_nodes: int = 3):
 
 if __name__ == "__main__":
     cache = CacheContainer()
-    controller = controller(cache, number_of_llm_nodes=5)
+    controller: Controller = controller(cache, number_of_llm_nodes=5)
     # Run the controller
     async def run_controller():
         answer, measurements = await controller.execute(input={"start": "762**2"})
         print(answer)
         print(measurements)
-        controller.graph_of_operations.snapshot.view(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
+        controller.graph_of_operations.snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
 
     asyncio.run(run_controller())

@@ -94,7 +94,7 @@ def tot_controller(num_branches: int = 20, improvement_levels: int = 2) -> Contr
     tot_graph.add_edge(Edge(keep_best_nodes[-1], end_node, "score", "score"))
     tot_graph.add_edge(Edge(start_node, end_node, "expected_output", "expected_output"))
 
-    tot_graph.snapshot.view(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
+    tot_graph.snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
 
     process_measurement = ProcessMeasurement(graph_of_operations=tot_graph)
     # Initialize the controller
@@ -113,4 +113,4 @@ if __name__ == "__main__":
     result, measurement = asyncio.run(controller.execute(input={"input_list": [1, 2, 3, 4, 5], "expected_output": [1, 2, 3, 4, 5]}))
     print(result)
     print(measurement)
-    controller.graph_of_operations.snapshot.view(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
+    controller.graph_of_operations.snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
