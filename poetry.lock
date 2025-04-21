@@ -2041,7 +2041,6 @@ description = "Patch asyncio to allow nested event loops"
 optional = false
 python-versions = ">=3.5"
 groups = ["main"]
-markers = "extra == \"examples\""
 files = [
     {file = "nest_asyncio-1.6.0-py3-none-any.whl", hash = "sha256:87af6efd6b5e897c81050477ef65c62e2b2f35d51703cae01aff2905b1852e1c"},
     {file = "nest_asyncio-1.6.0.tar.gz", hash = "sha256:6f172d5449aca15afd6c646851f4e31e02c598d553a667e38cafa997cfec55fe"},
@@ -3947,18 +3946,19 @@ description = "A Python module for creating Excel XLSX files."
 optional = false
 python-versions = ">=3.6"
 groups = ["main"]
+markers = "extra == \"dataset\" or extra == \"optimizer\""
 files = [
     {file = "XlsxWriter-3.2.3-py3-none-any.whl", hash = "sha256:593f8296e8a91790c6d0378ab08b064f34a642b3feb787cf6738236bd0a4860d"},
     {file = "xlsxwriter-3.2.3.tar.gz", hash = "sha256:ad6fd41bdcf1b885876b1f6b7087560aecc9ae5a9cc2ba97dcac7ab2e210d3d5"},
 ]
 
 [extras]
-dataset = ["numpy"]
+dataset = ["numpy", "xlsxwriter"]
 dev = ["pre-commit", "ruff"]
 examples = ["bm25s", "jupyter"]
-optimizer = ["numpy", "optuna", "optuna-dashboard"]
+optimizer = ["numpy", "optuna", "optuna-dashboard", "xlsxwriter"]
 
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "349c046dfae5df3883035cb3a918388ef98a7984e997b761c45b68a930bb9b02"
+content-hash = "e0942864f66d9f85604926dbf1fa6a24f2d4b051ab6e4a4c4fe3ad42679a1458"

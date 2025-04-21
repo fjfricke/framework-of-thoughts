@@ -23,6 +23,7 @@ optuna-dashboard = "^0.18.0"
 numpy = "^2.2.5"
 jupyter = "^1.1.1"
 xlsxwriter = "^3.2.3"
+nest-asyncio = "^1.6.0"
 
 [tool.poetry.extras]
 examples = ["jupyter", "bm25s"]

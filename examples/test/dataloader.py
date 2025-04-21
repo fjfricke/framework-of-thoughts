@@ -1,5 +1,6 @@
 from pathlib import Path
 from collections.abc import Iterator
+from typing import Iterable
 
 class TestDatasetLoader(Iterator):
     def __init__(self, file_path):
@@ -30,7 +31,7 @@ class TestDatasetLoader(Iterator):
         self.index += 1
         return {"start": input_str}, output_value
     
-class TestDatasetLoaderWithYield:
+class TestDatasetLoaderWithYield(Iterable):
     def __init__(self, file_path):
         self.file_path = file_path
 

@@ -22,11 +22,26 @@ class Study:
         self.max_concurrent = max_concurrent
         self.objective = None
         self.study_measurement = study_measurement
+    
+    def _run_dataset_evaluator_async(self):
+        def safe_asyncio_run(coro):
+            try:
+                return asyncio.run(coro)
+            except RuntimeError as e:
+                if "cannot be called from a running event loop" in str(e):
+                    import nest_asyncio
+                    nest_asyncio.apply()
+                    loop = asyncio.get_event_loop()
+                    return loop.run_until_complete(coro)
+                else:
+                    raise
+        return safe_asyncio_run(self.dataset_evaluator.evaluate_dataset(max_concurrent=self.max_concurrent))
+
     def set_objective(self, trial_controller_factory: Callable[[Trial], ControllerFactory]):
         def objective(trial: Trial):
             controller_factory = trial_controller_factory(trial)
             self.dataset_evaluator.set_controller_factory(controller_factory)
-            scores = asyncio.run(self.dataset_evaluator.evaluate_dataset(max_concurrent=self.max_concurrent))
+            scores = self._run_dataset_evaluator_async()
             if self.study_measurement:
                 self.study_measurement.add_dataset_measurement(self.dataset_evaluator.dataset_measurement)
             return tuple(scores[metric] for metric in self.metrics)
