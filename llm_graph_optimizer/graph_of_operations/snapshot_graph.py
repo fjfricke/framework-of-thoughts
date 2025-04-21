@@ -3,8 +3,10 @@ import pickle
 import tempfile
 from networkx import DiGraph, MultiDiGraph
 from pyvis.network import Network
+from IPython.display import IFrame
 import webbrowser
 import json
+import base64
 
 from llm_graph_optimizer.operations.helpers.node_state import NodeState
 
@@ -23,19 +25,31 @@ class SnapshotGraph():
     def load(cls, path: str):
         return cls(pickle.load(open(path, "rb")))
 
-    def view(self, show_multiedges: bool = True, show_keys: bool = False, show_values: bool = False, show_state: bool = False, notebook: bool = False):
-        nt = self._create_view(show_multiedges, show_keys, show_values, show_state)
-        # nt.show_buttons(filter_=["layout", "physics"])
+    def visualize(self, show_multiedges: bool = True, show_keys: bool = False, show_values: bool = False, show_state: bool = False, notebook: bool = False):
+        return self._view_or_save_visualization(show_multiedges, show_keys, show_values, show_state, notebook=notebook)
+    
+    def save_visualization(self, show_multiedges: bool = True, show_keys: bool = False, show_values: bool = False, show_state: bool = False, save_path: str = None):
+        return self._view_or_save_visualization(show_multiedges, show_keys, show_values, show_state, save_path=save_path)
 
-        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as temp_file:
-            temp_path = temp_file.name
-            if notebook:
-                return nt.show(temp_path, notebook=True)
+    def _view_or_save_visualization(self, show_multiedges: bool = True, show_keys: bool = False, show_values: bool = False, show_state: bool = False, notebook: bool = None, save_path: str = None) -> IFrame | None:
+        nt = self._create_view(show_multiedges, show_keys, show_values, show_state, notebook)
+
+        if notebook:
+            html_content = nt.generate_html(notebook=False)  # despite it being a notebook, this has to be false
+            html_base64 = base64.b64encode(html_content.encode('utf-8')).decode('utf-8')
+            html_data_url = f"data:text/html;base64,{html_base64}"
+            return IFrame(src=html_data_url, width=nt.width, height=nt.height)
+        else:
+            if save_path:
+                nt.show(save_path, notebook=False)
             else:
-                nt.show(temp_path, notebook=False)
-                webbrowser.open(f"file://{temp_path}")
-    def _create_view(self, show_multiedges: bool = True, show_keys: bool = False, show_values: bool = False, show_state: bool = False) -> Network:
-        nt = Network(height='600px', width='100%', directed=True, cdn_resources="remote", filter_menu=True)
+                with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as temp_file:
+                    temp_path = temp_file.name
+                    nt.show(temp_path, notebook=False)
+                    webbrowser.open(f"file://{temp_path}")
+
+    def _create_view(self, show_multiedges: bool = True, show_keys: bool = False, show_values: bool = False, show_state: bool = False, notebook: bool = False) -> Network:
+        nt = Network(height='600px', width='100%', directed=True, cdn_resources="remote" if not notebook else "in_line", filter_menu=True, notebook=notebook)
         graph = copy.deepcopy(self._graph)
 
         # Remove all attributes from edges in the copied graph and set the `title` attribute
@@ -99,7 +113,7 @@ class SnapshotGraph():
                     "springConstant": 0,
                     "nodeDistance": 75,
                     "damping": 0.17,
-                    "avoidOverlap": None
+                    "avoidOverlap": 0
                 },
                 "minVelocity": 0.75,
                 "solver": "hierarchicalRepulsion"
