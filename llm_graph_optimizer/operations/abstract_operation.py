@@ -1,14 +1,14 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 import logging
 from typing import Callable, get_origin
 from typeguard import TypeCheckError, check_type
-
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations, GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import Dynamic, ManyToOne, ReasoningState, ReasoningStateType, StateNotSet
 from llm_graph_optimizer.measurement.measurement import Measurement, MeasurementsWithCache
 from .helpers.node_state import NodeState
 
-#TODO: Add caching on class level
 
 class AbstractOperation(ABC):
     """
@@ -23,6 +23,15 @@ class AbstractOperation(ABC):
         self.output_types = output_types
         self.output_reasoning_states = {}
         self.name = name or self.__class__.__name__
+
+    @classmethod
+    def factory(cls, **kwargs) -> AbstractOperationFactoryWithParams:
+        def factory_without_params(**later_kwargs) -> AbstractOperationFactory:
+            # Combine initial kwargs with later_kwargs
+            combined_kwargs = {**kwargs, **later_kwargs}
+            return cls(**combined_kwargs)
+
+        return factory_without_params
 
     @abstractmethod
     async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement | MeasurementsWithCache | None]:
@@ -79,3 +88,4 @@ class AbstractOperation(ABC):
         return measurement_or_measurements_with_cache
 
 AbstractOperationFactory = Callable[[], AbstractOperation]
+AbstractOperationFactoryWithParams = Callable[..., AbstractOperation]
