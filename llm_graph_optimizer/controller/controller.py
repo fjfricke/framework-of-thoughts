@@ -1,6 +1,8 @@
-import asyncio
+from __future__ import annotations
 
+import asyncio
 from typing import Callable
+
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
 from llm_graph_optimizer.graph_of_operations.types import ReasoningState
 from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
@@ -17,6 +19,15 @@ class Controller:
         self.max_concurrent = max_concurrent
         self.logger = logging.getLogger(__name__)
         self.process_measurement = process_measurement
+
+    @classmethod
+    def factory(cls, **kwargs) -> ControllerFactoryWithParams:
+        def factory_without_params(**later_kwargs) -> ControllerFactory:
+            # Combine initial kwargs with later_kwargs
+            combined_kwargs = {**kwargs, **later_kwargs}
+            return cls(**combined_kwargs)
+
+        return factory_without_params
 
     def initialize_input(self, input: dict[str, any]):
         self.graph_of_operations.start_node.node_state = NodeState.PROCESSABLE
@@ -120,3 +131,4 @@ class Controller:
         return self.graph_of_operations.get_input_reasoning_states(self.graph_of_operations.end_node), self.process_measurement
 
 ControllerFactory = Callable[[], Controller]
+ControllerFactoryWithParams = Callable[..., Controller]

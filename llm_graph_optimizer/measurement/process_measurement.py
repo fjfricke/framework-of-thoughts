@@ -51,7 +51,6 @@ class ProcessMeasurement:
             setattr(total_parallel_measurements, measurement_field.name, parallel_measurement)
 
         return total_parallel_measurements
-    
 
     def __str__(self):
         return (

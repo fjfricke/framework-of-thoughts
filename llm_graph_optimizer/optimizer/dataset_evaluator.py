@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-from sys import maxsize
 from typing import Callable, Iterator
 import numpy as np
 from scipy.stats import t
@@ -8,40 +6,39 @@ import asyncio
 
 from llm_graph_optimizer.controller.controller import ControllerFactory
 from llm_graph_optimizer.graph_of_operations.types import ReasoningState
+from llm_graph_optimizer.measurement.dataset_measurement import DatasetEvaluatorParameters, DatasetMeasurement, GlobalEvaluationMeasurements, Score, ScoreParameter
 from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
-
-Map = Callable[[list[float]], float]
-
-@dataclass
-class DatasetEvaluatorParameters:
-    min_runs: int = 1
-    max_runs: int = maxsize
-    confidence_level: float = None              # e.g., [0.95, 0.99]
-    acceptable_ci_width: float = None           # e.g., [0.02, 0.01]
 
 class DatasetEvaluator:
     def __init__(
         self,
-        controller_factory: ControllerFactory,
-        calculate_score: Callable[[ReasoningState, ProcessMeasurement, any], float],
+        calculate_score: Callable[[ReasoningState, ProcessMeasurement, any], dict[ScoreParameter, float]],
         dataloader: Iterator[tuple[ReasoningState, any]],
-        parameters: DatasetEvaluatorParameters = DatasetEvaluatorParameters(),
+        parameters: DatasetEvaluatorParameters,
+        controller_factory: ControllerFactory = None,
     ):
         self.controller_factory = controller_factory
         self.calculate_score = calculate_score
         self.dataloader = dataloader
         self.parameters = parameters
+        self.dataset_measurement = DatasetMeasurement()
+        self.dataset_measurement.add_dataset_evaluator_parameters(parameters)
+
+    def set_controller_factory(self, controller_factory: ControllerFactory):
+        self.controller_factory = controller_factory
 
     def _confidence_interval_width(self, values: list[float], confidence: float) -> float:
         n = len(values)
         if n < 2:
-            return float('inf')
+            return np.float64('inf')
         std_err = np.std(values, ddof=1) / np.sqrt(n)
         t_score = t.ppf((1 + confidence) / 2, df=n - 1)
         return 2 * t_score * std_err
 
-    async def evaluate_dataset(self, max_concurrent: int = 1, map: list[Map] = [np.mean]) -> list[float]:
-        scores = []
+    async def evaluate_dataset(self, max_concurrent: int = 1) -> dict[ScoreParameter, np.float64]:
+        if self.controller_factory is None:
+            raise ValueError("Controller factory is not set")
+        score_params_and_values_up_to_current_iteration: dict[ScoreParameter, list[np.float64]] = {score_param: np.array([], dtype=np.float64) for score_param in self.parameters.score_parameters}
 
         if hasattr(self.dataloader, '__len__'):
             total = min(self.parameters.max_runs, len(self.dataloader))
@@ -69,27 +66,22 @@ class DatasetEvaluator:
                 i, (input_reasoning_state, ground_truth) = item
                 controller = self.controller_factory()
                 output_reasoning_state, measurement = await controller.execute(input_reasoning_state)
-                score = self.calculate_score(output_reasoning_state, measurement, ground_truth)
-                scores.append(score)
+                self.dataset_measurement.add_measurement(i, measurement)
+                scores = self.calculate_score(output_reasoning_state, measurement, ground_truth)
+                for param, score in scores.items():
+                    score_params_and_values_up_to_current_iteration[param] = np.append(score_params_and_values_up_to_current_iteration[param], np.float64(score))
 
-                if self.parameters.confidence_level is not None:
-                    ci_width = self._confidence_interval_width(scores, self.parameters.confidence_level)
-                mean_score = np.mean(scores)
-                mapped_scores = [m(scores) for m in map]
-                description = f"Iteration {i}: mean = {mean_score:.4f}, mapped scores = {mapped_scores}"
-                if self.parameters.confidence_level is not None:
-                    description += f", CI width = {ci_width:.4f}"
+                description = f"Iteration {i}: "
+                for param, values in score_params_and_values_up_to_current_iteration.items():
+                    ci_width = self._confidence_interval_width(values, param.confidence_interval_width)
+                    mean_score = np.mean(values)
+                    mapped_score = param.map(values)
+                    description += f"mean = {mean_score:.4f}, CI width = {ci_width:.4f}, {param.name} = {mapped_score:.4f}, "
+                    if param.acceptable_ci_width is not None and self.parameters.min_runs <= i + 1:
+                        confident = ci_width <= param.acceptable_ci_width
+                        if confident:
+                            stop_event.set()
                 pbar.set_description(description)
-
-                if (
-                    self.parameters.confidence_level is not None and
-                    self.parameters.acceptable_ci_width is not None and
-                    len(scores) >= self.parameters.min_runs
-                ):
-                    confident = ci_width <= self.parameters.acceptable_ci_width
-
-                    if confident:
-                        stop_event.set()
 
                 pbar.update(1)
                 queue.task_done()
@@ -101,4 +93,8 @@ class DatasetEvaluator:
             workers = [worker(queue) for _ in range(max_concurrent)]
             await asyncio.gather(producer_task, *workers)
 
-        return [m(scores) for m in map]
+        self.dataset_measurement.add_global_evaluation_measurement(GlobalEvaluationMeasurements(pbar.format_dict["elapsed"]))
+
+        scores = [Score(param.name, param.map(values), self._confidence_interval_width(values, param.confidence_interval_width)) for param, values in score_params_and_values_up_to_current_iteration.items()]
+        self.dataset_measurement.add_scores(scores)
+        return {param: param.map(values) for param, values in score_params_and_values_up_to_current_iteration.items()}

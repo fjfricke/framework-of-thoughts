@@ -22,11 +22,12 @@ optuna = "^4.3.0"
 optuna-dashboard = "^0.18.0"
 numpy = "^2.2.5"
 jupyter = "^1.1.1"
+xlsxwriter = "^3.2.3"
 
 [tool.poetry.extras]
 examples = ["jupyter", "bm25s"]
-dataset = ["numpy"]
-optimizer = ["numpy", "optuna", "optuna-dashboard"]
+dataset = ["numpy", "xlsxwriter"]
+optimizer = ["numpy", "xlsxwriter", "optuna", "optuna-dashboard"]
 dev = ["ruff", "pre-commit"]
 
 [build-system]
