@@ -10,7 +10,7 @@ from llm_graph_optimizer.measurement.process_measurement import ProcessMeasureme
 from llm_graph_optimizer.operations.base_operations.end import End
 from llm_graph_optimizer.operations.base_operations.filter_operation import FilterOperation
 from llm_graph_optimizer.operations.base_operations.start import Start
-from llm_graph_optimizer.operations.llm_operations import BaseLLMOperation
+from llm_graph_optimizer.operations.llm_operations.base_llm_operation import BaseLLMOperation
 
 from llm_graph_optimizer.schedulers.schedulers import Scheduler
 
