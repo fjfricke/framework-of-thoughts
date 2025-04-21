@@ -16,15 +16,15 @@ pyvis = "^0.3.2"
 typeguard = "^4.4.2"
 pandas = "^2.2.3"
 bm25s = "^0.2.11"
-jupyterlab = "^4.4.0"
 ruff = "^0.11.6"
 pre-commit = "^4.2.0"
 optuna = "^4.3.0"
 optuna-dashboard = "^0.18.0"
 numpy = "^2.2.5"
+jupyter = "^1.1.1"
 
 [tool.poetry.extras]
-examples = ["jupyterlab", "bm25s"]
+examples = ["jupyter", "bm25s"]
 dataset = ["numpy"]
 optimizer = ["numpy", "optuna", "optuna-dashboard"]
 dev = ["ruff", "pre-commit"]
