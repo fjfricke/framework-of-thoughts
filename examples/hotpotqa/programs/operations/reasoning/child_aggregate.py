@@ -80,8 +80,8 @@ def parser(data: list[tuple[str, float]], question_decomposition_score: float, c
     }
 
 class ChildAggregateReasoning(LLMOperationWithLogprobs):
-    def __init__(self, llm: AbstractLanguageModel, use_cache: bool = True, params: dict = None, name: str = "ChildAggregateReasoning"):
-        input_types = {"question": str, "question_decomposition_score": float, "dependency_answers": list[str] | NoneType, "subquestions": ManyToOne[str], "subquestion_answers": ManyToOne[str], "child_decomposition_scores": ManyToOne[float]}
+    def __init__(self, llm: AbstractLanguageModel, use_cache: bool = True, use_many_to_one: bool = True, params: dict = None, name: str = "ChildAggregateReasoning"):
+        input_types = {"question": str, "question_decomposition_score": float, "dependency_answers": list[str] | NoneType, "subquestions": ManyToOne[str] if use_many_to_one else list[str], "subquestion_answers": ManyToOne[str] if use_many_to_one else list[str], "child_decomposition_scores": ManyToOne[float] if use_many_to_one else list[float]}
         output_types = {"answer": str, "decomposition_score": float}
         super().__init__(llm, prompter, parser, use_cache, params, input_types, output_types, name)
 

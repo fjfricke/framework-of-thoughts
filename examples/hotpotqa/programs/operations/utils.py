@@ -1,3 +1,4 @@
+import ast
 import json
 import logging
 import re
@@ -14,8 +15,23 @@ def replace_dependencies(subquestion: str, dependencies: dict[int, str]) -> str:
     for id, dependency in dependencies.items():
         subquestion = subquestion.replace(f"#{id}", dependency)
     return subquestion
+        
+def calculate_average_logprob(logprobs, start, end):
+    """
+    Calculates the average log probability for a range of tokens.
 
+    Args:
+        tokens (list): List of tokens.
+        logprobs (list): List of log probabilities.
+        start (int): Start index of the range.
+        end (int): End index of the range.
 
+    Returns:
+        float: The average log probability for the range.
+    """
+    return sum(logprobs[start:end + 1]) / len(logprobs[start:end + 1])
+
+# relevant for probtree
 
 def parse_tree_and_extract_logprobs(tokens, logprobs):
     """
@@ -51,22 +67,7 @@ def parse_tree_and_extract_logprobs(tokens, logprobs):
         except json.JSONDecodeError:
             logging.error("Failed to parse JSON from LLM response content.")
             return None
-
-    def calculate_average_logprob(logprobs, start, end):
-        """
-        Calculates the average log probability for a range of tokens.
-
-        Args:
-            tokens (list): List of tokens.
-            logprobs (list): List of log probabilities.
-            start (int): Start index of the range.
-            end (int): End index of the range.
-
-        Returns:
-            float: The average log probability for the range.
-        """
-        return sum(logprobs[start:end + 1]) / len(logprobs[start:end + 1])
-
+        
     # Step 1: Parse the response content
     parsed_data = parse_response_content(''.join(tokens))
     if not parsed_data:
@@ -107,3 +108,71 @@ def parse_tree_and_extract_logprobs(tokens, logprobs):
         sub_question_data[sub_question] = (question_data, avg_logprob)
 
     return sub_question_data
+
+# relevant for dynamic probtree
+
+def parse_list_and_extract_logprobs(tokens, logprobs):
+    def parse_response_content(response_content: str):
+        try:
+            # Extract the portion of the string starting at the first '{' and ending at the last '}'
+            start_index = response_content.find('[')
+            end_index = response_content.rfind(']')
+            if start_index != -1 and end_index != -1:
+                response_content = response_content[start_index:end_index + 1]
+            else:
+                logging.error("Failed to find list boundaries in the response content.")
+                return None
+            # Parse the JSON
+            parsed_content_list = ast.literal_eval(response_content)
+            if not (isinstance(parsed_content_list, list) and all(isinstance(item, str) for item in parsed_content_list)):
+                logging.error("Failed to parse list from LLM response content.")
+                return None
+            return parsed_content_list
+        except (ValueError, SyntaxError) as e:
+            logging.error(f"Failed to parse list from LLM response content: {e}")
+            return None
+        
+    parsed_data = parse_response_content(''.join(tokens))
+    if not parsed_data:
+        return None
+    token_index = 0
+        
+    while token_index < len(tokens):
+        if "[" in tokens[token_index]:
+            start_index = token_index
+            break
+        token_index += 1
+
+    while token_index < len(tokens):
+        if "]" in tokens[token_index]:
+            end_index = token_index
+            break
+        token_index += 1
+
+    if start_index is None or end_index is None:
+        logging.error(f"Failed to find token range for list: {parsed_data}")
+        return None, None
+
+    # Calculate the average log probability for the sub-question
+    avg_logprob = calculate_average_logprob(logprobs, start_index, end_index)
+    return parsed_data, avg_logprob
+
+def parse_branch_and_extract_logprob(tokens, logprobs):
+    parsed_data = ''.join(tokens)
+    token_index = 0
+    answer = None
+    while token_index < len(tokens):
+        if "Yes" in tokens[token_index]:
+            answer = True
+            index = token_index
+            break
+        elif "No" in tokens[token_index]:
+            answer = False
+            index = token_index
+            break
+        token_index += 1
+    if index is None:
+        logging.error(f"Failed to find token range for branch: {parsed_data}")
+        return None, None
+    logprob = logprobs[index]
+    return answer, logprob
