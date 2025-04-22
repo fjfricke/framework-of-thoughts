@@ -11,6 +11,20 @@ import base64
 from llm_graph_optimizer.operations.helpers.node_state import NodeState
 
 
+class SnapshotGraphs():
+    def __init__(self):
+        self.graphs: list[SnapshotGraph] = []
+
+    def add_snapshot(self, snapshot: "SnapshotGraph"):
+        self.graphs.append(snapshot)
+
+    def save(self, path: str):
+        pickle.dump(self.graphs, open(path, "wb"))
+
+    def load(self, path: str):
+        self.graphs = pickle.load(open(path, "rb"))
+
+
 class SnapshotGraph():
     def __init__(self, graph: MultiDiGraph):
         """

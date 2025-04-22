@@ -7,11 +7,10 @@ from llm_graph_optimizer.graph_of_operations.types import Dynamic, Edge, ManyToO
 from llm_graph_optimizer.measurement.measurement import Measurement
 from llm_graph_optimizer.operations.abstract_operation import AbstractOperation, AbstractOperationFactory
 from llm_graph_optimizer.operations.base_operations.end import End
-from llm_graph_optimizer.operations.base_operations.filter_operation import FilterOperation
 
 
 class UnderstandingGraphUpdating(AbstractOperation):
-    def __init__(self, open_book_op: AbstractOperationFactory, closed_book_op: AbstractOperationFactory, child_aggregate_op: AbstractOperationFactory, understanding_op: AbstractOperationFactory, params: dict = None, name: str = None):
+    def __init__(self, open_book_op: AbstractOperationFactory, closed_book_op: AbstractOperationFactory, child_aggregate_op: AbstractOperationFactory, understanding_op: AbstractOperationFactory, filter_op: AbstractOperationFactory, params: dict = None, name: str = None):
         input_types = {"hqdt": dict, "question": str, "question_decomposition_score": float, "dependency_answers": ManyToOne[str]}
         output_types = Dynamic
         super().__init__(input_types, output_types, params, name)
@@ -19,7 +18,7 @@ class UnderstandingGraphUpdating(AbstractOperation):
         self.closed_book_op = closed_book_op
         self.child_aggregate_op = child_aggregate_op
         self.understanding_op = understanding_op
-
+        self.filter_op = filter_op
     async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement]:
         
 
@@ -34,10 +33,7 @@ class UnderstandingGraphUpdating(AbstractOperation):
         dependency_answers = list(input_reasoning_states["dependency_answers"])
         output_reasoning_states = {"hqdt": hqdt, "question": current_question, "answer": StateNotSet, "question_decomposition_score": StateNotSet, "dependency_answers": dependency_answers}
 
-        def filter_function(answers: list[str], decomposition_scores: list[float]) -> dict[str, any]:
-            answer, decomposition_score = max(zip(answers, decomposition_scores), key=lambda x: x[1])
-            return {"answer": answer, "decomposition_score": decomposition_score}
-        filter_node = FilterOperation(output_types={"answer": str, "decomposition_score": float}, input_types={"answers": ManyToOne[str], "decomposition_scores": ManyToOne[float]}, filter_function=filter_function)
+        filter_node = self.filter_op()
         partitions.exclusive_descendants.add_node(filter_node)
 
         # create reasoning nodes
