@@ -4,6 +4,7 @@ import asyncio
 from typing import Callable
 
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
+from llm_graph_optimizer.graph_of_operations.snapshot_graph import SnapshotGraphs
 from llm_graph_optimizer.graph_of_operations.types import ReasoningState
 from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
 from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
@@ -12,13 +13,16 @@ from llm_graph_optimizer.operations.helpers.node_state import NodeState
 import logging
 
 class Controller:
-    def __init__(self, graph_of_operations: GraphOfOperations, scheduler: Callable[[GraphOfOperations], list[AbstractOperation]], max_concurrent: int = 3, process_measurement: ProcessMeasurement = None):
+    def __init__(self, graph_of_operations: GraphOfOperations, scheduler: Callable[[GraphOfOperations], list[AbstractOperation]], max_concurrent: int = 3, process_measurement: ProcessMeasurement = None, store_intermediate_snapshots: bool = False):
         self.graph_of_operations = graph_of_operations
         self.scheduler = scheduler
         # self.graph_over_time = []
         self.max_concurrent = max_concurrent
         self.logger = logging.getLogger(__name__)
         self.process_measurement = process_measurement
+        self.store_intermediate_snapshots = store_intermediate_snapshots
+        if self.store_intermediate_snapshots:
+            self.intermediate_snapshots = SnapshotGraphs()
 
     @classmethod
     def factory(cls, **kwargs) -> ControllerFactoryWithParams:
@@ -42,6 +46,9 @@ class Controller:
 
         # Initialize the graph with the input
         self.initialize_input(input)
+
+        if self.store_intermediate_snapshots:
+            self.intermediate_snapshots.add_snapshot(self.graph_of_operations.snapshot)
 
         # Create an async queue for operations
         operation_queue = asyncio.Queue()
@@ -74,6 +81,8 @@ class Controller:
                     operation.node_state = NodeState.FAILED
                     raise e
                 finally:
+                    if self.store_intermediate_snapshots:
+                        self.intermediate_snapshots.add_snapshot(self.graph_of_operations.snapshot)
                     operation_queue.task_done()
 
                 if self.graph_of_operations.all_processed:
