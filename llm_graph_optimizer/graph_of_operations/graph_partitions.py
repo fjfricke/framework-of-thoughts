@@ -60,6 +60,10 @@ class ExclusiveDescendants(BaseGraph):
             self.original_graph._remove_edge(edge)
         else:
             raise ValueError(f"Edge {edge} is not in the exclusive descendants graph.")
+        
+    def successor_edges(self, node: "AbstractOperation") -> list[Edge]:
+        successor_edges = self._graph.out_edges(node, data=True)
+        return Edge.from_edge_view(successor_edges)
     
     @property
     def start_node(self) -> "AbstractOperation":
