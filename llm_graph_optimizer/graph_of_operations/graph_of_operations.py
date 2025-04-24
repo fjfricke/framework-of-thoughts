@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, get_origin
 import networkx as nx
 from .base_graph import BaseGraph
-from .types import Edge, NodeKey, ManyToOne
+from .types import Edge, NodeKey, ManyToOne, StateSetFailed
 from llm_graph_optimizer.operations.helpers.node_state import NodeState
 from .graph_partitions import Descendants, ExclusiveDescendants, GraphPartitions, Predecessors
 if TYPE_CHECKING:
@@ -42,6 +42,9 @@ class GraphOfOperations(BaseGraph):
     def add_edge(self, edge: Edge, order: int=0):
         super()._add_edge(edge, order)
 
+    def add_dependency_edge(self, from_node: "AbstractOperation", to_node: "AbstractOperation"):
+        super()._add_dependency_edge(from_node, to_node)
+
     def remove_node(self, node: "AbstractOperation"):
         super()._remove_node(node)
     
@@ -63,18 +66,19 @@ class GraphOfOperations(BaseGraph):
             if not predecessor.node_state.is_finished:
                 raise ValueError(f"Predecessor {predecessor} is not finished")
             edge_data = self._graph.get_edge_data(predecessor, node)
-            edge_data_values_sorted = sorted(edge_data.values(), key=lambda x: x["order"])
+            edge_data_values_sorted = sorted(edge_data.values(), key=lambda x: x.get("order", -1))
             for edge in edge_data_values_sorted:
-                to_node_key = edge["to_node_key"]
-                if to_node_key is not None:
-                    value = edge.get("value")
-                    # Check if the type is OneToManyList or a parameterized version of it
-                    if get_origin(node.input_types[to_node_key]) == ManyToOne:
-                        # Aggregate values into a list
-                        input_reasoning_states[to_node_key].append(value)
-                    else:
-                        # Assign the value directly for non-OneToManyList types
-                        input_reasoning_states[to_node_key] = value
+                if "to_node_key" in edge:
+                    to_node_key = edge["to_node_key"]
+                    if to_node_key is not None:
+                        value = edge.get("value") if not predecessor.node_state == NodeState.FAILED else StateSetFailed
+                        # Check if the type is OneToManyList or a parameterized version of it
+                        if get_origin(node.input_types[to_node_key]) == ManyToOne:
+                            # Aggregate values into a list
+                            input_reasoning_states[to_node_key].append(value)
+                        else:
+                            # Assign the value directly for non-OneToManyList types
+                            input_reasoning_states[to_node_key] = value
         return input_reasoning_states
     
     def partitions(self, node: "AbstractOperation") -> GraphPartitions:

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generic, TypeVar
 from networkx.classes.multidigraph import OutMultiEdgeView
 
 if TYPE_CHECKING:
@@ -35,12 +35,18 @@ class StateNotSetType:
         return "<StateNotSet>"
 StateNotSet = StateNotSetType()
 
+class StateSetFailedType:
+    def __repr__(self):
+        return "<StateSetFailed>"
+StateSetFailed = StateSetFailedType()
+
 class DynamicType:
     def __repr__(self):
         return "<Dynamic>"
 Dynamic = DynamicType()
 
-class ManyToOne(list):
+T = TypeVar("T")
+class ManyToOne(list, Generic[T]):
     def __repr__(self):
         return "<ManyToOne>"
 

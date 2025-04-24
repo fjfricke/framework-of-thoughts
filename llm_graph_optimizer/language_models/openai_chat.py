@@ -1,6 +1,8 @@
+import backoff
 from httpx import AsyncClient
-from openai import AsyncOpenAI
-import os
+from openai import AsyncOpenAI, OpenAIError
+from dotenv import load_dotenv
+from os import getenv
 
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
 from llm_graph_optimizer.language_models.helpers.language_model_config import Config, LLMResponseType
@@ -23,7 +25,8 @@ class OpenAIChat(AbstractLanguageModel):
         :param response_price_per_token: Price per token for responses.
         """
         super().__init__(config, LLMResponseType.TEXT, execution_cost, cache)
-        api_key = api_key or os.environ.get("OPENAI_API_KEY")
+        load_dotenv()
+        api_key = api_key or getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("API key is not set. Please provide it or set the 'OPENAI_API_KEY' environment variable.")
         self.model = model
@@ -45,6 +48,7 @@ class OpenAIChat(AbstractLanguageModel):
             "response_price_per_token": self.response_price_per_token
         }
 
+    @backoff.on_exception(backoff.expo, OpenAIError, max_time=10, max_tries=6)
     async def _raw_query(self, prompt: str) -> tuple[str, Measurement | None]:
         """
         Query the OpenAI ChatCompletion API and return metadata.

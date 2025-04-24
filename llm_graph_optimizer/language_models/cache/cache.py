@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 import logging
+from pathlib import Path
 import pickle
 from enum import Enum
 from llm_graph_optimizer.language_models.cache.types import CacheSeed, LLMCacheKey
@@ -48,10 +49,11 @@ class CacheContainer:
     Cache for language models calls
     """
 
-    def __init__(self):
+    def __init__(self, save_file_path: Path = None):
         self.logger = logging.getLogger(__name__)
         self.process_cache: Cache = Cache()
         self.persistent_cache: Cache = Cache()
+        self.save_file_path: Path = save_file_path
 
     @classmethod
     def from_persistent_cache_file(cls, file_path: str, skip_on_file_not_found: bool = False) -> "CacheContainer":
@@ -60,19 +62,24 @@ class CacheContainer:
         """
         try:
             with open(file_path, "rb") as f:
-                cache = CacheContainer()
+                cache = CacheContainer(save_file_path=Path(file_path))
                 cache.persistent_cache = pickle.load(f)
                 return cache
         except FileNotFoundError:
             if skip_on_file_not_found:
-                return CacheContainer()
+                return CacheContainer(save_file_path=Path(file_path))
             else:
                 raise
         
-    def save_persistent_cache(self, file_path: str):
+    def save_persistent_cache(self, file_path: str = None):
         """
         Saves the persistent cache to a file.
         """
+        if file_path is None:
+            file_path = self.save_file_path
+            if file_path is None:
+                logging.warning("No file path to save persistent cache to. Skipping.")
+                return
         with open(file_path, "wb") as f:
             pickle.dump(self.persistent_cache, f)
     

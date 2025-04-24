@@ -72,6 +72,12 @@ class BaseGraph(ABC):
             to_node_key=edge.to_node_key,
             order=order
         )
+
+    def _add_dependency_edge(self, from_node: "AbstractOperation", to_node: "AbstractOperation"):
+        self._graph.add_edge(
+            from_node,
+            to_node,
+        )
     
     def _remove_node(self, node: "AbstractOperation"):
         self._graph.remove_node(node)
@@ -82,8 +88,17 @@ class BaseGraph(ABC):
     def _update_edge_values(self, from_node: "AbstractOperation", value: dict[NodeKey, any]):
         for edge in self._graph.edges(from_node, data=True):
             edge_data = edge[2]
-            if edge_data["from_node_key"] in value:
-                edge_data["value"] = value[edge_data["from_node_key"]]
+            if "from_node_key" in edge_data:  # dependency edges do not hold data
+                if edge_data["from_node_key"] in value:
+                    edge_data["value"] = value[edge_data["from_node_key"]]
+    
+    def _update_new_from_predecessor_edge_values(self, from_node: "AbstractOperation", to_node: "AbstractOperation", from_node_key: NodeKey):
+        for edge in self._graph.edges(from_node, data=True):
+            if edge[1] == to_node:  
+                edge_data = edge[2]
+                if from_node_key in edge_data["from_node_key"]:
+                    if edge_data["from_node_key"] in from_node.output_reasoning_states:
+                        edge_data["value"] = from_node.output_reasoning_states[edge_data["from_node_key"]]
 
     def graph_table(self):
         import pandas as pd

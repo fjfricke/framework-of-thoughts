@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+import warnings
 from .base_graph import BaseGraph
 from .types import Edge, NodeKey
 from networkx import MultiDiGraph
@@ -35,6 +36,9 @@ class Predecessors(BaseGraph):
         if len(end_nodes) != 1:
             raise ValueError("Predecessor Graph must have exactly one end node with out-degree 0")
         return end_nodes[0]
+    
+    def __contains__(self, node: "AbstractOperation") -> bool:
+        return node in self._graph.nodes
 
 class ExclusiveDescendants(BaseGraph):
 
@@ -46,11 +50,16 @@ class ExclusiveDescendants(BaseGraph):
     def add_node(self, node: "AbstractOperation"):
         self.original_graph._add_node(node)
         self.new_nodes.add(node)
+    
     def add_edge(self, edge: Edge, order: int=0):
+        warnings.warn("Deprecated: Use partitions.add_edge instead.", DeprecationWarning)
         if edge.from_node in (self._graph.nodes | self.new_nodes) and edge.to_node in (self._graph.nodes | self.new_nodes):
             self.original_graph._add_edge(edge, order)
         else:
             raise ValueError(f"Both ends of the edge must be in the exclusive descendants graph. {edge.from_node} or {edge.to_node} is/are not in the original graph.")
+        
+    def add_dependency_edge(self, from_node: "AbstractOperation", to_node: "AbstractOperation"):
+        self.original_graph._add_dependency_edge(from_node, to_node)
 
     def remove_node(self, node: "AbstractOperation"):
         raise PermissionError("Removing nodes is forbidden in ExclusiveDescendants. Use the function in the GraphPartitions class instead.")
@@ -115,6 +124,9 @@ class Descendants(BaseGraph):
     @property
     def end_node(self) -> "AbstractOperation":
         return super().end_node
+    
+    def __contains__(self, node: "AbstractOperation") -> bool:
+        return node in self._graph.nodes
 
 
 class GraphPartitions:
@@ -137,6 +149,15 @@ class GraphPartitions:
             raise ValueError(f"In order to move an edge, the new from_node must be in the exclusive Descendants graph. {new_from_node} is not.")
         self.original_graph._remove_edge(current_edge)
         self.original_graph._add_edge(Edge(new_from_node, current_edge.to_node, new_from_node_key, current_edge.to_node_key), order=edge_data.get("order", 0))
+
+    def add_edge(self, edge: Edge, order: int=0):
+        if not (edge.from_node in self.predecessors or edge.from_node in self.exclusive_descendants):
+            raise ValueError(f"The from_node must be in the predecessors or exclusive descendants graph. {edge.from_node} is not.")
+        if edge.to_node not in self.exclusive_descendants:
+            raise ValueError(f"The to_node must be in the exclusive descendants graph. {edge.to_node} is not.")
+        self.original_graph._add_edge(edge, order)
+        if edge.from_node in self.predecessors:
+            self.predecessors.original_graph._update_new_from_predecessor_edge_values(edge.from_node, edge.to_node, edge.from_node_key)
 
     def remove_node(self, node: "AbstractOperation"):
         if node in self.exclusive_descendants and node not in self.descendants:

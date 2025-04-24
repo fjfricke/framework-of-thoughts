@@ -1,7 +1,8 @@
 from openai import AsyncOpenAI, OpenAIError
 import backoff
-import os
 from httpx import AsyncClient
+from dotenv import load_dotenv
+from os import getenv
 
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
 from llm_graph_optimizer.language_models.helpers.language_model_config import Config, LLMResponseType
@@ -24,7 +25,9 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
         :param response_price_per_token: Price per token for responses.
         """
         super().__init__(config, LLMResponseType.TOKENS_AND_LOGPROBS, execution_cost, cache)
-        api_key = api_key or os.environ.get("OPENAI_API_KEY")
+        load_dotenv()
+        api_key = api_key or getenv("OPENAI_API_KEY")
+        print(api_key)
         if not api_key:
             raise ValueError("API key is not set. Please provide it or set the 'OPENAI_API_KEY' environment variable.")
         self.model = model

@@ -144,9 +144,8 @@ class DatasetMeasurement:
             sheets_data["dataset_evaluator_parameters"] = df
         if self.scores:
             df = pd.DataFrame()
-            df.insert(0, "scores", self.scores)
             for score in self.scores:
-                df = pd.concat([df, score.to_pd_row()], axis=1)
+                df = pd.concat([df, score.to_pd_row()], axis=0)
             sheets_data["scores"] = df
         for map_name, map_function in maps_for_measurements.items():
             mapped_sequential_and_parallel_measurements = self.calculate_dataset_measurement(map_function)

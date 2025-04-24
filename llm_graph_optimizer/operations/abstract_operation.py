@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import logging
-from typing import Callable, get_origin
+from typing import Callable, List, get_args, get_origin
 from typeguard import TypeCheckError, check_type
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations, GraphPartitions
-from llm_graph_optimizer.graph_of_operations.types import Dynamic, ManyToOne, ReasoningState, ReasoningStateType, StateNotSet
+from llm_graph_optimizer.graph_of_operations.types import Dynamic, ManyToOne, ReasoningState, ReasoningStateType, StateNotSet, StateSetFailed
 from llm_graph_optimizer.measurement.measurement import Measurement, MeasurementsWithCache
+from llm_graph_optimizer.operations.helpers.exceptions import OperationFailed
 from .helpers.node_state import NodeState
 
 
@@ -23,6 +24,7 @@ class AbstractOperation(ABC):
         self.output_types = output_types
         self.output_reasoning_states = {}
         self.name = name or self.__class__.__name__
+        self.logger = logging.getLogger(__name__)
 
     @classmethod
     def factory(cls, **kwargs) -> AbstractOperationFactoryWithParams:
@@ -51,11 +53,28 @@ class AbstractOperation(ABC):
             if input_reasoning_states[key] is StateNotSet:
                 raise ValueError(f"Input reasoning state for key {key} is not set")
             
+            if input_reasoning_states[key] is StateSetFailed or (StateSetFailed in input_reasoning_states[key] if isinstance(input_reasoning_states[key], list) else False):
+                try:
+                    check_type(input_reasoning_states[key], expected_type)
+                except TypeCheckError as e:
+                    if get_origin(expected_type) is ManyToOne:
+                        inner_type = get_args(expected_type)[0]
+                        try:
+                            check_type(input_reasoning_states[key], List[inner_type])
+                        except TypeCheckError as e:
+                            raise OperationFailed(f"Input reasoning state in operation {self.name} for key {key} is set to failed and this operation cannot handle failed predecessors.") from e
+                    else:
+                        raise OperationFailed(f"Input reasoning state in operation {self.name} for key {key} is set to failed and this operation cannot handle failed predecessors.") from e
+            
             try:
                 check_type(input_reasoning_states[key], expected_type)
             except TypeCheckError as e:
-                if get_origin(expected_type) is ManyToOne and isinstance(input_reasoning_states[key], list):
-                    pass
+                if get_origin(expected_type) is ManyToOne:
+                    inner_type = get_args(expected_type)[0]
+                    try:
+                        check_type(input_reasoning_states[key], List[inner_type])
+                    except TypeCheckError as e:
+                        raise TypeError(f"Input '{key}' must be of type {expected_type}, got {type(input_reasoning_states[key])}") from e
                 else:
                     raise TypeError(f"Input '{key}' must be of type {expected_type}, got {type(input_reasoning_states[key])}") from e
 
@@ -70,7 +89,7 @@ class AbstractOperation(ABC):
             raise TypeError(f"Outputs must be a dictionary, got {type(result)}")
         
         if self.output_types is Dynamic:
-            logging.warning(f"Output types are dynamic for operation {self.name}, skipping validation")
+            self.logger.warning(f"Output types are dynamic for operation {self.name}, skipping validation")
         else:
             for key, expected_type in self.output_types.items():
                 if key not in result:
@@ -83,7 +102,7 @@ class AbstractOperation(ABC):
 
 
         self.output_reasoning_states = result
-        logging.debug(f"Output reasoning states: {self.output_reasoning_states} for operation {self.name}")
+        self.logger.debug(f"Output reasoning states: {self.output_reasoning_states} for operation {self.name}")
         graph.update_edge_values(self, result)
         return measurement_or_measurements_with_cache
 

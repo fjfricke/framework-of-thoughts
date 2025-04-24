@@ -8,7 +8,7 @@ from llm_graph_optimizer.graph_of_operations.snapshot_graph import SnapshotGraph
 from llm_graph_optimizer.graph_of_operations.types import ReasoningState
 from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
 from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
-from llm_graph_optimizer.operations.helpers.exceptions import OperationFailed
+from llm_graph_optimizer.operations.helpers.exceptions import GraphExecutionFailed, OperationFailed
 from llm_graph_optimizer.operations.helpers.node_state import NodeState
 import logging
 
@@ -55,6 +55,8 @@ class Controller:
 
         queue_lock = asyncio.Lock()
 
+        workers_failed_to_enqueue = {"value": 0}
+
         async def worker():
             """
             Worker function to process operations from the queue.
@@ -77,9 +79,12 @@ class Controller:
                     self.logger.debug("Operation %s completed successfully.", operation.name)
                     operation.node_state = NodeState.DONE
                 except OperationFailed as e:
-                    self.logger.error("Operation %s failed. Error: %s", operation.name, e)
+                    if self.process_measurement:
+                        self.process_measurement.add_measurement(operation, e.measurement)
+                    self.logger.warning("Operation %s failed. Error: %s", operation.name, e)
                     operation.node_state = NodeState.FAILED
-                    raise e
+                    if debug_params.get("raise_on_operation_failure", False):
+                        raise e
                 finally:
                     if self.store_intermediate_snapshots:
                         self.intermediate_snapshots.add_snapshot(self.graph_of_operations.snapshot)
@@ -102,6 +107,14 @@ class Controller:
                         if op in self.graph_of_operations.processable_nodes and op not in operation_queue._queue
                     ]
                     self.logger.debug("Next operations to enqueue: %s", [op.name for op in next_operations])
+                    if not next_operations and all(item is None for item in operation_queue._queue):
+                        workers_failed_to_enqueue["value"] += 1
+                        if workers_failed_to_enqueue["value"] >= self.max_concurrent:
+                            self.logger.error("No executable operations found but not all done. Please check the graph structure here. Exiting.")
+                            await operation_queue.put(None)
+                            break
+                    else:
+                        workers_failed_to_enqueue["value"] = 0
                     for op in next_operations:
                         await operation_queue.put(op)
 
@@ -137,6 +150,14 @@ class Controller:
             worker_task.cancel()
 
         self.logger.debug("Returning final input reasoning states.")
+        try:
+            if self.graph_of_operations.end_node.node_state == NodeState.FAILED:
+                self.logger.error("The output of the final operation failed for input %s.", input)
+                return self.graph_of_operations.get_input_reasoning_states(self.graph_of_operations.end_node), self.process_measurement
+        except ValueError as e:
+            self.logger.error("The output of the final operation failed for input %s with error %s.", input, e)
+            raise GraphExecutionFailed(e, process_measurement=self.process_measurement)
+        
         return self.graph_of_operations.get_input_reasoning_states(self.graph_of_operations.end_node), self.process_measurement
 
 ControllerFactory = Callable[[], Controller]

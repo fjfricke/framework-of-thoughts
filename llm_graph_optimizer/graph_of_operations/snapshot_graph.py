@@ -1,4 +1,5 @@
 import copy
+import logging
 import pickle
 import tempfile
 from networkx import DiGraph, MultiDiGraph
@@ -39,7 +40,9 @@ class SnapshotGraph():
     def load(cls, path: str):
         return cls(pickle.load(open(path, "rb")))
 
-    def visualize(self, show_multiedges: bool = True, show_keys: bool = False, show_values: bool = False, show_state: bool = False, notebook: bool = False):
+    def visualize(self, show_multiedges: bool = False, show_keys: bool = False, show_values: bool = False, show_state: bool = False, notebook: bool = False):
+        if show_multiedges:
+            logging.warning("show_multiedges does not work well with hierarchical layout. I recommend not to use it.")
         return self._view_or_save_visualization(show_multiedges, show_keys, show_values, show_state, notebook=notebook)
     
     def save_visualization(self, show_multiedges: bool = True, show_keys: bool = False, show_values: bool = False, show_state: bool = False, save_path: str = None):
@@ -77,9 +80,15 @@ class SnapshotGraph():
 
             # Set the `title` attribute based on the original edge data
             if show_keys and not show_values:
-                edge_data['title'] = f"{original_edge_data['from_node_key']} -> {original_edge_data['to_node_key']}"
+                if "from_node_key" in original_edge_data and "to_node_key" in original_edge_data:
+                    edge_data['title'] = f"{original_edge_data['from_node_key']} -> {original_edge_data['to_node_key']}"
+                else:
+                    edge_data['title'] = "dependency edge"
             elif show_values:
-                edge_data['title'] = f"{original_edge_data['from_node_key']} -> {original_edge_data['to_node_key']}: {original_edge_data.get('value', 'N/A')}"
+                if "from_node_key" in original_edge_data and "to_node_key" in original_edge_data:
+                    edge_data['title'] = f"{original_edge_data['from_node_key']} -> {original_edge_data['to_node_key']}: {original_edge_data.get('value', 'N/A')}"
+                else:
+                    edge_data['title'] = "dependency edge"
 
         # add color to the nodes depending on the state
         if show_state:
