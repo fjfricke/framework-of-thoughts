@@ -7,24 +7,25 @@ from examples.hotpotqa.programs.operations.reasoning.filter import filter_functi
 from examples.hotpotqa.programs.operations.reasoning.open_book import OpenBookReasoning, get_retriever
 from llm_graph_optimizer.controller.controller import Controller
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
-from llm_graph_optimizer.graph_of_operations.types import Edge, ManyToOne
-from llm_graph_optimizer.language_models.helpers.language_model_config import Config
+from llm_graph_optimizer.graph_of_operations.types import Edge, ManyToOne, StateSetFailedType
+from llm_graph_optimizer.language_models.cache.cache import CacheContainer
 from llm_graph_optimizer.language_models.openai_chat_with_logprobs import OpenAIChatWithLogprobs
 from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
 from llm_graph_optimizer.operations.base_operations.end import End
 from llm_graph_optimizer.operations.base_operations.filter_operation import FilterOperation
 from llm_graph_optimizer.operations.base_operations.start import Start
 from llm_graph_optimizer.operations.llm_operations.llm_operation_with_logprobs import LLMOperationWithLogprobs
-from examples.hotpotqa.programs.operations.one_layer_understanding.branch import BranchOperation, prompter as branch_prompt, parser as branch_parser
+from examples.hotpotqa.programs.operations.one_layer_understanding.branch import ShouldBranchClassifier, prompter as branch_prompt, parser as branch_parser
 from examples.hotpotqa.programs.operations.one_layer_understanding.decompose import prompter as decompose_prompt, parser as decompose_parser
 from llm_graph_optimizer.schedulers.schedulers import Scheduler
 
 import logging
 logging.getLogger().setLevel(logging.CRITICAL)
-logging.getLogger('llm_graph_optimizer.controller.controller').setLevel(logging.DEBUG)
+# logging.getLogger('llm_graph_optimizer.controller.controller').setLevel(logging.DEBUG)
 
-def dynamic_probtree_controller(max_depth: int, min_branch_certainty_threshold: float) -> Controller:
-    llm = OpenAIChatWithLogprobs(model="gpt-4o", config=Config(temperature=0.0))
+retriever = get_retriever(Path().resolve() / "examples" / "hotpotqa" / "dataset" / "HotpotQA" / "wikipedia_index_bm25")
+
+def dynamic_probtree_controller(llm: OpenAIChatWithLogprobs, max_depth: int, min_branch_certainty_threshold: float, n_retrieved_docs: int = 5) -> Controller:
 
     start_node = Start(
         input_types={"question": str},
@@ -36,7 +37,7 @@ def dynamic_probtree_controller(max_depth: int, min_branch_certainty_threshold: 
         input_types={"answer": str, "decomposition_score": float},
     )
     
-    branch_op = BranchOperation.factory(
+    branch_op = ShouldBranchClassifier.factory(
         llm=llm,
         prompter=branch_prompt,
         parser=branch_parser,
@@ -46,14 +47,15 @@ def dynamic_probtree_controller(max_depth: int, min_branch_certainty_threshold: 
 
     open_book_op = OpenBookReasoning.factory(
         llm=llm,
-        retriever=get_retriever(Path().resolve() / "examples" / "hotpotqa" / "dataset" / "HotpotQA" / "wikipedia_index_bm25"),
-        k=5)
+        retriever=retriever,
+        k=n_retrieved_docs
+    )
     
     closed_book_op = ClosedBookReasoning.factory(llm=llm)
 
     child_aggregate_op = ChildAggregateReasoning.factory(llm=llm, use_many_to_one=False)
 
-    filter_op = FilterOperation.factory(output_types={"answer": str, "decomposition_score": float}, input_types={"answers": ManyToOne[str], "decomposition_scores": ManyToOne[float]}, filter_function=filter_function)
+    filter_op = FilterOperation.factory(output_types={"answer": str, "decomposition_score": float}, input_types={"answers": ManyToOne[str | StateSetFailedType], "decomposition_scores": ManyToOne[float | StateSetFailedType]}, filter_function=filter_function)
 
     decompose_op = lambda: LLMOperationWithLogprobs(
         llm=llm,
@@ -103,7 +105,7 @@ def dynamic_probtree_controller(max_depth: int, min_branch_certainty_threshold: 
     controller = Controller(
         graph_of_operations=probtree_graph,
         scheduler=Scheduler.BFS,
-        max_concurrent=1,
+        max_concurrent=2,
         process_measurement=process_measurement,
         store_intermediate_snapshots=True
     )
@@ -112,8 +114,18 @@ def dynamic_probtree_controller(max_depth: int, min_branch_certainty_threshold: 
 
 if __name__ == "__main__":
     import asyncio
-    controller = dynamic_probtree_controller(max_depth=1, min_branch_certainty_threshold=0.5)
-    answer, measurement = asyncio.run(controller.execute({"question": "What is the capital of the population-wise largest country in the EU? Please decompose."}))
+    cache = CacheContainer.from_persistent_cache_file(Path(__file__).parent / "output" / "hotpotqa_dataset_cache.pkl", skip_on_file_not_found=True)
+    controller = dynamic_probtree_controller(
+        cache,
+        max_depth=3,
+        min_branch_certainty_threshold=0.5,
+        model="gpt-4.1-nano"
+    )
+    answer, process_measurement = asyncio.run(controller.execute(
+        input={"question": "What is the title of the American crime film set in South Los Angeles that was written and directed by the same person who wrote \"Street Kings\", \"End of Watch\", \"Sabotage\", \"Fury\", and another film?"},
+        debug_params={"raise_on_operation_failure": False}
+    ))
+    [snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True) for snapshot in controller.intermediate_snapshots.graphs]
     print(answer)
-    print(measurement)
+    print(process_measurement)
     controller.graph_of_operations.snapshot.visualize(show_multiedges=False, show_keys=True, show_values=True, show_state=True)

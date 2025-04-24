@@ -8,6 +8,7 @@ from examples.hotpotqa.programs.operations.reasoning.filter import filter_functi
 from examples.hotpotqa.programs.operations.reasoning.open_book import OpenBookReasoning, get_retriever
 from examples.hotpotqa.programs.operations.unterstanding.understanding import UnderstandingGraphUpdating
 from examples.hotpotqa.programs.operations.unterstanding.prompter_parser import understanding_parser, understanding_prompt
+from examples.openai_pricing import OPENAI_PRICING
 from llm_graph_optimizer.controller.controller import Controller
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
 from llm_graph_optimizer.graph_of_operations.types import Edge, ManyToOne
@@ -20,11 +21,9 @@ from llm_graph_optimizer.operations.base_operations.start import Start
 from llm_graph_optimizer.operations.llm_operations.llm_operation_with_logprobs import LLMOperationWithLogprobs
 from llm_graph_optimizer.schedulers.schedulers import Scheduler
 
-logging.getLogger().setLevel(logging.CRITICAL)
-logging.getLogger('llm_graph_optimizer.controller.controller').setLevel(logging.DEBUG)
+retriever = get_retriever(Path().resolve() / "examples" / "hotpotqa" / "dataset" / "HotpotQA" / "wikipedia_index_bm25")
 
-def probtree_controller() -> Controller:
-    llm = OpenAIChatWithLogprobs(model="gpt-4o", config=Config(temperature=0.0))
+def probtree_controller(llm: OpenAIChatWithLogprobs, n_retrieved_docs: int = 5) -> Controller:
 
     start_node = Start(
         input_types={"question": str},
@@ -47,8 +46,9 @@ def probtree_controller() -> Controller:
 
     open_book_op = lambda: OpenBookReasoning(
         llm=llm,
-        retriever=get_retriever(Path(os.getcwd()) / "examples" / "hotpotqa" / "dataset" / "HotpotQA" / "wikipedia_index_bm25"),
-        k=5)
+        retriever=retriever,
+        k=n_retrieved_docs
+    )
     
     closed_book_op = lambda: ClosedBookReasoning(llm=llm)
 
@@ -86,7 +86,7 @@ def probtree_controller() -> Controller:
     controller = Controller(
         graph_of_operations=probtree_graph,
         scheduler=Scheduler.BFS,
-        max_concurrent=5,
+        max_concurrent=1,
         process_measurement=process_measurement,
         store_intermediate_snapshots=True
     )
@@ -94,12 +94,16 @@ def probtree_controller() -> Controller:
     return controller
 
 if __name__ == "__main__":
-    controller = probtree_controller()
+    logging.getLogger().setLevel(logging.CRITICAL)
+    logging.getLogger('llm_graph_optimizer.controller.controller').setLevel(logging.DEBUG)
+    model = "gpt-4.1-mini"
+    llm = OpenAIChatWithLogprobs(model=model, config=Config(temperature=0.0), request_price_per_token=OPENAI_PRICING[model]["request_price_per_token"], response_price_per_token=OPENAI_PRICING[model]["response_price_per_token"])
+    controller = probtree_controller(llm=llm)
     import asyncio
     # output = asyncio.run(controller.execute({"question": "What is 1+1?"}))
     controller.graph_of_operations.snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
     # output, process_measurement = asyncio.run(controller.execute({"question": "What is the combined population of the population-wise biggest 2 neighbour country of the largest country in Europe by capita?"}))
-    output, process_measurement = asyncio.run(controller.execute({"question": "Are both Superdrag and Collective Soul rock bands?"}))
+    output, process_measurement = asyncio.run(controller.execute(input={"question": "Are both Superdrag and Collective Soul rock bands?"}, debug_params={"raise_on_operation_failure": True}))
     # [snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True) for snapshot in controller.intermediate_snapshots.graphs]
     snapshot_graph = controller.graph_of_operations.snapshot
     snapshot_graph.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True)

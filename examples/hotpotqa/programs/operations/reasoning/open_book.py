@@ -106,7 +106,7 @@ class OpenBookReasoning(LLMOperationWithLogprobs):
             return context_str
         
         question_tokenized = bm25s.tokenize(question, stopwords="en")
-        context_raw = self.retriever.retrieve(question_tokenized, k=self.k)
+        context_raw = self.retriever.retrieve(question_tokenized, k=self.k, show_progress=False)
         context = parse_bm25_documents(context_raw)
         return context
     

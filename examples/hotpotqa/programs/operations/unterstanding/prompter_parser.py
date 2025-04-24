@@ -1,4 +1,5 @@
 from examples.hotpotqa.programs.operations.utils import parse_tree_and_extract_logprobs
+from llm_graph_optimizer.operations.helpers.exceptions import OperationFailed
 
 
 def understanding_prompt(question: str):
@@ -48,4 +49,7 @@ Q: """
     return examples + question
 
 def understanding_parser(output: list) -> dict:
+    hqdt = parse_tree_and_extract_logprobs(list(map(lambda x: x[0], output)), list(map(lambda x: x[1], output)))
+    if hqdt is None:
+        raise OperationFailed("Failed to parse HQDT")
     return {"hqdt": parse_tree_and_extract_logprobs(list(map(lambda x: x[0], output)), list(map(lambda x: x[1], output)))}

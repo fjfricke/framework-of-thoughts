@@ -13,7 +13,7 @@ class Study:
                  metrics: list[ScoreParameter],
                  dataset_evaluator: DatasetEvaluator,
                  max_concurrent: int = 10,
-                 study_measurement: StudyMeasurement = None
+                 study_measurement: StudyMeasurement = None,
                  ):
         self.optuna_study = optuna_study
         self.optuna_study.set_metric_names([metric.name for metric in metrics])
