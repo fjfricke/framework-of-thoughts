@@ -1,0 +1,124 @@
+from pathlib import Path
+from examples.hotpotqa.programs.operations.one_layer_understanding.one_layer_reasoning_on_low_score import OneLayerReasoningOnLowScore
+from examples.hotpotqa.programs.operations.one_layer_understanding.one_layer_understanding_on_low_score import OneLayerUnderstandingOnLowScore
+from examples.hotpotqa.programs.operations.reasoning.child_aggregate import ChildAggregateReasoning
+from examples.hotpotqa.programs.operations.reasoning.closed_book import ClosedBookReasoning
+from examples.hotpotqa.programs.operations.reasoning.filter import filter_function
+from examples.hotpotqa.programs.operations.reasoning.open_book import OpenBookReasoning, get_retriever
+from llm_graph_optimizer.controller.controller import Controller
+from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
+from llm_graph_optimizer.graph_of_operations.types import Edge, ManyToOne, StateSetFailedType
+from llm_graph_optimizer.language_models.cache.cache import CacheContainer
+from llm_graph_optimizer.language_models.helpers.language_model_config import Config
+from llm_graph_optimizer.language_models.openai_chat_with_logprobs import OpenAIChatWithLogprobs
+from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
+from llm_graph_optimizer.operations.base_operations.end import End
+from llm_graph_optimizer.operations.base_operations.filter_operation import FilterOperation
+from llm_graph_optimizer.operations.base_operations.start import Start
+from llm_graph_optimizer.operations.llm_operations.llm_operation_with_logprobs import LLMOperationWithLogprobs
+from examples.hotpotqa.programs.operations.one_layer_understanding.decompose import prompter as decompose_prompt, parser as decompose_parser
+from llm_graph_optimizer.schedulers.schedulers import Scheduler
+
+import logging
+logging.getLogger().setLevel(logging.CRITICAL)
+# logging.getLogger('llm_graph_optimizer.controller.controller').setLevel(logging.DEBUG)
+
+retriever = get_retriever(Path().resolve() / "examples" / "hotpotqa" / "dataset" / "HotpotQA" / "wikipedia_index_bm25")
+
+def dynamic_probtree_controller_on_low_score(llm: OpenAIChatWithLogprobs, max_depth: int, max_certainty_to_branch: float, n_retrieved_docs: int = 5) -> Controller:
+
+    start_node = Start(
+        input_types={"question": str},
+        output_types={"question": str, "max_depth": int, "max_certainty_to_branch": float, "question_decomposition_score": float},
+        static_outputs={"max_depth": max_depth, "max_certainty_to_branch": max_certainty_to_branch, "question_decomposition_score": 0.0}
+    )
+
+    end_node = End(
+        input_types={"answer": str, "decomposition_score": float},
+    )
+
+    open_book_op = OpenBookReasoning.factory(
+        llm=llm,
+        retriever=retriever,
+        k=n_retrieved_docs
+    )
+    
+    closed_book_op = ClosedBookReasoning.factory(llm=llm)
+
+    child_aggregate_op = ChildAggregateReasoning.factory(llm=llm, use_many_to_one=False)
+
+    filter_op = FilterOperation.factory(output_types={"answer": str, "decomposition_score": float}, input_types={"answers": ManyToOne[str | StateSetFailedType], "decomposition_scores": ManyToOne[float | StateSetFailedType]}, filter_function=filter_function)
+
+    decompose_op = lambda: LLMOperationWithLogprobs(
+        llm=llm,
+        prompter=decompose_prompt,
+        parser=decompose_parser,
+        input_types={"question": str, "dependency_answers": list[str]},
+        output_types={"subquestions": list[str], "question_decomposition_score": float},
+    )
+
+    understanding_op = lambda: OneLayerUnderstandingOnLowScore(
+        reasoning_op=reasoning_op,
+    )
+
+    reasoning_op = lambda: OneLayerReasoningOnLowScore(
+        open_book_op=open_book_op,
+        closed_book_op=closed_book_op,
+        child_aggregate_op=child_aggregate_op,
+        filter_op=filter_op,
+        decompose_op=decompose_op,
+        understanding_op=understanding_op,
+        max_certainty_to_branch=max_certainty_to_branch
+    )
+
+    probtree_graph = GraphOfOperations()
+    probtree_graph.add_node(start_node)
+    probtree_graph.add_node(end_node)
+
+    reasoning_node = reasoning_op()
+    probtree_graph.add_node(reasoning_node)
+
+    
+    probtree_graph.add_edge(Edge(start_node, reasoning_node, "question", "question"))
+    probtree_graph.add_edge(Edge(start_node, reasoning_node, "max_depth", "max_depth"))
+    probtree_graph.add_edge(Edge(start_node, reasoning_node, "question_decomposition_score", "question_decomposition_score"))
+    
+    probtree_graph.add_edge(Edge(reasoning_node, end_node, "answer", "answer"))
+    probtree_graph.add_edge(Edge(reasoning_node, end_node, "decomposition_score", "decomposition_score"))
+
+    process_measurement = ProcessMeasurement(graph_of_operations=probtree_graph)
+
+    controller = Controller(
+        graph_of_operations=probtree_graph,
+        scheduler=Scheduler.BFS,
+        max_concurrent=2,
+        process_measurement=process_measurement,
+        store_intermediate_snapshots=True
+    )
+    
+    return controller
+
+if __name__ == "__main__":
+    import asyncio
+    cache = CacheContainer.from_persistent_cache_file(Path(__file__).parent / "output" / "hotpotqa_dataset_cache.pkl", skip_on_file_not_found=True)
+
+    llm = OpenAIChatWithLogprobs(
+        model="gpt-4.1-mini",
+        config=Config(
+            temperature=0.0
+        ),
+        cache=cache
+    )
+    controller = dynamic_probtree_controller_on_low_score(
+        llm,
+        max_depth=1,
+        max_certainty_to_branch=1.0,
+    )
+    answer, process_measurement = asyncio.run(controller.execute(
+        input={"question": "What is the title of the American crime film set in South Los Angeles that was written and directed by the same person who wrote \"Street Kings\", \"End of Watch\", \"Sabotage\", \"Fury\", and another film?"},
+        debug_params={"raise_on_operation_failure": True}
+    ))
+    [snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True) for snapshot in controller.intermediate_snapshots.graphs]
+    print(answer)
+    print(process_measurement)
+    controller.graph_of_operations.snapshot.visualize(show_multiedges=False, show_keys=True, show_values=True, show_state=True)
