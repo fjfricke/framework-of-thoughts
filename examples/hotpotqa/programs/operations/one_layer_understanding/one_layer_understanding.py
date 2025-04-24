@@ -5,6 +5,7 @@ from llm_graph_optimizer.graph_of_operations.types import Dynamic, Edge, Reasoni
 from llm_graph_optimizer.measurement.measurement import Measurement
 from llm_graph_optimizer.operations.abstract_operation import AbstractOperation, AbstractOperationFactory
 from llm_graph_optimizer.operations.base_operations.pack_unpack_operations import PackOperation
+from llm_graph_optimizer.operations.helpers.exceptions import OperationFailed
 
 
 class OneLayerUnderstanding(AbstractOperation):
@@ -49,8 +50,11 @@ class OneLayerUnderstanding(AbstractOperation):
             partitions.exclusive_descendants.add_edge(Edge(reasoning_node, pack_node, "decomposition_score", "child_decomposition_scores"), order=i)
 
             for dependency in potential_dependencies:
-                partitions.exclusive_descendants.add_edge(Edge(reasoning_nodes[dependency-1], reasoning_node, "answer", "dependency_answers"), order=dependency-1)
-                partitions.exclusive_descendants.add_edge(Edge(reasoning_nodes[dependency-1], branch_node, "answer", "dependency_answers"), order=dependency-1)
+                try:
+                    partitions.exclusive_descendants.add_edge(Edge(reasoning_nodes[dependency-1], reasoning_node, "answer", "dependency_answers"), order=dependency-1)
+                    partitions.exclusive_descendants.add_edge(Edge(reasoning_nodes[dependency-1], branch_node, "answer", "dependency_answers"), order=dependency-1)
+                except IndexError:
+                    raise OperationFailed(f"Dependency {dependency} is out of range for subquestion {subquestion} with dependencies {potential_dependencies}.")
             
             output_reasoning_states[f"subquestion_{i}"] = subquestion
         # move successor edge to reasoning nodes and make copies

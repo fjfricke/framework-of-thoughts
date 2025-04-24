@@ -1,5 +1,5 @@
 import numpy as np
-from examples.hotpotqa.programs.operations.one_layer_understanding.branch import BranchOperation
+from examples.hotpotqa.programs.operations.one_layer_understanding.branch import ShouldBranchClassifier
 from examples.hotpotqa.programs.operations.one_layer_understanding.one_layer_understanding import OneLayerUnderstanding
 from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import Dynamic, Edge, ManyToOne, ReasoningState, StateNotSet
@@ -29,7 +29,7 @@ class OneLayerReasoning(AbstractOperation):
         should_decompose = input_reasoning_states["should_decompose"]
         should_decompose_score = input_reasoning_states["should_decompose_score"]
 
-        should_decompose = max_depth > 0 and should_decompose and np.exp(should_decompose_score) > self.min_branch_certainty_threshold
+        should_decompose = max_depth > 0 and (should_decompose and np.exp(should_decompose_score) > self.min_branch_certainty_threshold or not should_decompose and np.exp(should_decompose_score) < self.min_branch_certainty_threshold)
 
         filter_node = self.filter_op()
         partitions.exclusive_descendants.add_node(filter_node)
@@ -77,7 +77,7 @@ class OneLayerReasoning(AbstractOperation):
 
         # move successor edges to UnderstandingGraphUpdating nodes to filter node iff the key is "answer" or "decomposition_score"
         successor_edges = partitions.descendants.successor_edges(self)
-        successor_edges = [edge for edge in successor_edges if type(edge.to_node) in [End, OneLayerUnderstanding, PackOperation, OneLayerReasoning, BranchOperation]]
+        successor_edges = [edge for edge in successor_edges if type(edge.to_node) in [End, OneLayerUnderstanding, PackOperation, OneLayerReasoning, ShouldBranchClassifier]]
         successor_edges_with_answer = [edge for edge in successor_edges if edge.to_node_key in ["answer", "subquestion_answers", "dependency_answers"]]
         for successor_edge in successor_edges_with_answer:
             partitions.move_edge(current_edge=successor_edge, new_from_node=filter_node, new_from_node_key="answer")
