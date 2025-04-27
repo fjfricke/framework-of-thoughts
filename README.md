@@ -1,0 +1,67 @@
+# llm_graph_optimizer
+
+## Description
+`llm_graph_optimizer` is a Python library designed to model and optimize graph-based multi-step reasoning problems using large language models (LLMs). It provides tools for creating, visualizing and executing prompting strategies, and optimizing hyperparameters using optuna.
+
+## Installation
+
+To install the project, ensure you have Python 3.12 or higher installed. Then, use `poetry` to set up the environment:
+
+```bash
+poetry install
+```
+
+This will install all required dependencies.
+
+### Activating the Virtual Environment
+
+After installing the dependencies, activate the virtual environment created by `poetry`:
+
+```bash
+poetry shell
+```
+
+## Optional Features
+
+The project provides several optional features that can be installed using `poetry` extras. These extras enable additional functionality for specific use cases:
+
+- **examples**: Includes dependencies needed to run the examples in the `examples` directory. If you want to replicate the studies, please also install the `optimizer` extra.
+- **dataset**: Adds support to run experiments on entire datasets.
+- **optimizer**: `dataset` + installs `optuna` and `optuna-dashboard` for hyperparameter optimization.
+- **dev**: Installs development tools like `ruff` and `pre-commit` for linting and code formatting if you want to contribute to the project. :)
+
+### Installing Extras
+
+To install an extra, use the following command:
+
+```bash
+poetry install --extras "<extra_name>"
+```
+
+For example, to install the `examples` extra:
+
+```bash
+poetry install --extras "examples"
+```
+
+### Installing All Extras
+
+To install all extras at once, use the following command:
+
+```bash
+poetry install --all-extras
+```
+
+## Usage
+
+Explore the `examples` directory for modelling Tree-of-Thought (ToT) on the Sorting Problem, and ProbTree and variations thereof on the HotpotQA dataset.
+
+A mock example called "test" is also provided to show how to use the library using Self-Consistency prompting on simple math problems.
+
+A tutorial is provided under `examples/test/tutorial.ipynb` to show how to use the library for modelling and optimizing execution graphs. I recommend checking that out to get started. You can find a snapshot html version [here](https://fjfricke.github.io/llm-graph-optimizer-tutorial) (might not be up-to-date).
+
+## Features
+
+- Modelling of graph-based prompting strategies with support for various graph operations and measurements
+- Integration with `optuna` for optimization of hyperparameters
+- Example scripts and datasets to reproduce the results in the research handin.
