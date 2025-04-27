@@ -44,7 +44,7 @@ recall_score = ScoreParameter(
 
 parameters = DatasetEvaluatorParameters(
     min_runs=10,
-    # max_runs=10,
+    max_runs=950,
     # max_runs=1000,
     score_parameters=[accuracy_score, f1_score, precision_score, recall_score]
 )
@@ -81,7 +81,7 @@ def probtree_study():
         return probtree_controller(llm, n_retrieved_docs=n_retrieved_docs, scaling_factors=scaling_factors, shifting_factors=shifting_factors)
 
     def objective(trial: optuna.Trial):
-        n_retrieved_docs = trial.suggest_int("n_retrieved_docs", 1, 10)
+        n_retrieved_docs = trial.suggest_int("n_retrieved_docs", 1, 5)
         scaling_factors = [1.0]
         shifting_factors = [0.0]
         for name in ["closedbook", "aggregate"]:
@@ -93,14 +93,14 @@ def probtree_study():
     # study_measurement = StudyMeasurement.load(Path(__file__).parent.parent / "output" / "hotpotqa_probtree_study_scale_or_shift_decomp_score.pkl", skip_on_file_not_found=True)
 
     #to restart a new study
-    # optuna.delete_study(study_name="final_probtree_study_3", storage="sqlite:///db.sqlite3")
+    optuna.delete_study(study_name="final_probtree_study_parallelism", storage="sqlite:///db.sqlite3")
     study_measurement = StudyMeasurement(save_file_path=Path(__file__).parent.parent / "output" / "final_probtree_study.pkl")
 
 
     optuna_study = optuna.create_study(
         direction="maximize",
         storage="sqlite:///db.sqlite3",
-        study_name="final_probtree_study_3",
+        study_name="final_probtree_study_parallelism",
         load_if_exists=True
     )
     # last_trial = sorted(optuna_study.trials, key=lambda t: t.number)[-1]
@@ -130,5 +130,27 @@ def probtree_study():
             "sum": np.sum
         }
     )
+
+def test_dataset_evaluation():
+    import asyncio
+    dataloader = lambda: HotpotQADatasetLoader(execution_mode=Split.VALIDATION, dataset_path=dataset_path, split=0.3, seed=42)
+    cache = CacheContainer.from_persistent_cache_file(Path(__file__).parent.parent / "output" / "cache.pkl", skip_on_file_not_found=True, load_as_virtual_persistent_cache=True)
+    llm = OpenAIChatWithLogprobs(
+        model="gpt-4.1-mini",
+        config=Config(temperature=0.0),
+        request_price_per_token=OPENAI_PRICING["gpt-4.1-mini"]["request_price_per_token"],
+        response_price_per_token=OPENAI_PRICING["gpt-4.1-mini"]["response_price_per_token"],
+        cache=cache
+    )
+    controller_factory = lambda: probtree_controller(llm, n_retrieved_docs=8, scaling_factors=[1.0, 1.172188886586379, 0.8973330433368379], shifting_factors=[0.0, 0.05253448002817633, -0.16389013949880604])
+    dataset_evaluator = DatasetEvaluator(
+        controller_factory=controller_factory,
+        calculate_score=calculate_score,
+        dataloader_factory=dataloader,
+        parameters=parameters
+    )
+    scores = asyncio.run(dataset_evaluator.evaluate_dataset(max_concurrent=20))
+    print(scores)
 if __name__ == "__main__":
-    probtree_study()
+    # probtree_study()
+    test_dataset_evaluation()
