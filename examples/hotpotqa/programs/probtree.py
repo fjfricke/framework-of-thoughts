@@ -4,7 +4,7 @@ from pathlib import Path
 
 from examples.hotpotqa.programs.operations.reasoning.child_aggregate import ChildAggregateReasoning
 from examples.hotpotqa.programs.operations.reasoning.closed_book import ClosedBookReasoning
-from examples.hotpotqa.programs.operations.reasoning.filter import filter_function
+from examples.hotpotqa.programs.operations.reasoning.filter import filter_function, filter_function_with_scaling_and_shifting
 from examples.hotpotqa.programs.operations.reasoning.open_book import OpenBookReasoning, get_retriever
 from examples.hotpotqa.programs.operations.unterstanding.understanding import UnderstandingGraphUpdating
 from examples.hotpotqa.programs.operations.unterstanding.prompter_parser import understanding_parser, understanding_prompt
@@ -23,7 +23,7 @@ from llm_graph_optimizer.schedulers.schedulers import Scheduler
 
 retriever = get_retriever(Path().resolve() / "examples" / "hotpotqa" / "dataset" / "HotpotQA" / "wikipedia_index_bm25")
 
-def probtree_controller(llm: OpenAIChatWithLogprobs, n_retrieved_docs: int = 5) -> Controller:
+def probtree_controller(llm: OpenAIChatWithLogprobs, n_retrieved_docs: int = 5, scaling_factors: list[float] = None, shifting_factors: list[float] = None) -> Controller:
 
     start_node = Start(
         input_types={"question": str},
@@ -41,27 +41,33 @@ def probtree_controller(llm: OpenAIChatWithLogprobs, n_retrieved_docs: int = 5) 
         parser=understanding_parser,
         input_types={"question": str},
         output_types={"hqdt": dict},
-        name="GenerateHQDT"
+        name="GenerateTree"
     )
 
     open_book_op = lambda: OpenBookReasoning(
         llm=llm,
         retriever=retriever,
-        k=n_retrieved_docs
+        k=n_retrieved_docs,
+        name="OB"
     )
     
-    closed_book_op = lambda: ClosedBookReasoning(llm=llm)
+    closed_book_op = lambda: ClosedBookReasoning(llm=llm, name="CB")
 
-    child_aggregate_op = lambda: ChildAggregateReasoning(llm=llm)
+    child_aggregate_op = lambda: ChildAggregateReasoning(llm=llm, name="CA")
 
-    filter_op = lambda: FilterOperation(output_types={"answer": str, "decomposition_score": float}, input_types={"answers": ManyToOne[str], "decomposition_scores": ManyToOne[float]}, filter_function=filter_function)
+    if scaling_factors is None or shifting_factors is None:
+        _filter_function = filter_function
+    else:
+        _filter_function = lambda answers, decomposition_scores: filter_function_with_scaling_and_shifting(answers, decomposition_scores, scaling_factors, shifting_factors)
+    filter_op = lambda: FilterOperation(output_types={"answer": str, "decomposition_score": float}, input_types={"answers": ManyToOne[str], "decomposition_scores": ManyToOne[float]}, filter_function=_filter_function, name="Filter")
 
     understanding_op = lambda: UnderstandingGraphUpdating(
         open_book_op=open_book_op,
         closed_book_op=closed_book_op,
         child_aggregate_op=child_aggregate_op,
         understanding_op=understanding_op,
-        filter_op=filter_op
+        filter_op=filter_op,
+        name="BuildTree"
     )
 
     understanding_node = understanding_op()
@@ -103,7 +109,7 @@ if __name__ == "__main__":
     # output = asyncio.run(controller.execute({"question": "What is 1+1?"}))
     controller.graph_of_operations.snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
     # output, process_measurement = asyncio.run(controller.execute({"question": "What is the combined population of the population-wise biggest 2 neighbour country of the largest country in Europe by capita?"}))
-    output, process_measurement = asyncio.run(controller.execute(input={"question": "Are both Superdrag and Collective Soul rock bands?"}, debug_params={"raise_on_operation_failure": True}))
+    output, process_measurement = asyncio.run(controller.execute(input={"question": "Are both Superdrag and Collective Soul rock bands?"}, debug_params={"raise_on_operation_failure": True, "visualize_intermediate_graphs": True}))
     # [snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True) for snapshot in controller.intermediate_snapshots.graphs]
     snapshot_graph = controller.graph_of_operations.snapshot
     snapshot_graph.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True)

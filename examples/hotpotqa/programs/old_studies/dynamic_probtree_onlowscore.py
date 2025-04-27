@@ -5,6 +5,7 @@ from examples.hotpotqa.programs.operations.reasoning.child_aggregate import Chil
 from examples.hotpotqa.programs.operations.reasoning.closed_book import ClosedBookReasoning
 from examples.hotpotqa.programs.operations.reasoning.filter import filter_function
 from examples.hotpotqa.programs.operations.reasoning.open_book import OpenBookReasoning, get_retriever
+from examples.openai_pricing import OPENAI_PRICING
 from llm_graph_optimizer.controller.controller import Controller
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
 from llm_graph_optimizer.graph_of_operations.types import Edge, ManyToOne, StateSetFailedType
@@ -20,7 +21,7 @@ from examples.hotpotqa.programs.operations.one_layer_understanding.decompose imp
 from llm_graph_optimizer.schedulers.schedulers import Scheduler
 
 import logging
-logging.getLogger().setLevel(logging.CRITICAL)
+logging.getLogger().setLevel(logging.ERROR)
 # logging.getLogger('llm_graph_optimizer.controller.controller').setLevel(logging.DEBUG)
 
 retriever = get_retriever(Path().resolve() / "examples" / "hotpotqa" / "dataset" / "HotpotQA" / "wikipedia_index_bm25")
@@ -107,11 +108,13 @@ if __name__ == "__main__":
         config=Config(
             temperature=0.0
         ),
+        request_price_per_token=OPENAI_PRICING["gpt-4.1-mini"]["request_price_per_token"],
+        response_price_per_token=OPENAI_PRICING["gpt-4.1-mini"]["response_price_per_token"],
         cache=cache
     )
     controller = dynamic_probtree_controller_on_low_score(
         llm,
-        max_depth=1,
+        max_depth=2,
         max_certainty_to_branch=1.0,
     )
     answer, process_measurement = asyncio.run(controller.execute(
