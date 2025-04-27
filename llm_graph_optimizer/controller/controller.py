@@ -14,6 +14,15 @@ import logging
 
 class Controller:
     def __init__(self, graph_of_operations: GraphOfOperations, scheduler: Callable[[GraphOfOperations], list[AbstractOperation]], max_concurrent: int = 3, process_measurement: ProcessMeasurement = None, store_intermediate_snapshots: bool = False):
+        """
+        Initialize the Controller with a graph of operations, a scheduler, and optional parameters.
+
+        :param graph_of_operations: The graph of operations to be executed.
+        :param scheduler: A callable that schedules operations from the graph.
+        :param max_concurrent: Maximum number of concurrent operations.
+        :param process_measurement: Optional measurement store for the individual process.
+        :param store_intermediate_snapshots: Whether to store intermediate snapshots of the graph.
+        """
         self.graph_of_operations = graph_of_operations
         self.scheduler = scheduler
         # self.graph_over_time = []
@@ -26,6 +35,12 @@ class Controller:
 
     @classmethod
     def factory(cls, **kwargs) -> ControllerFactoryWithParams:
+        """
+        Create a factory for the Controller class with pre-defined parameters.
+
+        :param kwargs: Initial parameters for the Controller.
+        :return: A callable factory that accepts additional parameters.
+        """
         def factory_without_params(**later_kwargs) -> ControllerFactory:
             # Combine initial kwargs with later_kwargs
             combined_kwargs = {**kwargs, **later_kwargs}
@@ -33,19 +48,24 @@ class Controller:
 
         return factory_without_params
 
-    def initialize_input(self, input: dict[str, any]):
+    def _initialize_input(self, input: dict[str, any]):
         self.graph_of_operations.start_node.node_state = NodeState.PROCESSABLE
         self.graph_of_operations.start_node.set_input_reasoning_states(input)
 
-    async def execute(self, input: dict[str, any], debug_params = {}) -> tuple[ReasoningState, ProcessMeasurement]:
+    async def execute(self, input: dict[str, any], debug_params: dict[str, bool] = {}) -> tuple[ReasoningState, ProcessMeasurement]:
         """
         Execute operations in the graph using the scheduler and an async queue.
-        :param input: Initial input for the graph.
+
+        :param input: Initial input reasoning state to the graph.
+        :param debug_params: Optional debugging parameters dict. Keys can be:
+            - "visualize_intermediate_graphs": Whether to visualize the intermediate graphs.
+            - "raise_on_operation_failure": Whether to raise an exception on operation failure.
+        :return: A tuple containing the final reasoning state and process measurements.
         """
         self.logger.debug("Initializing graph with input: %s", input)
 
         # Initialize the graph with the input
-        self.initialize_input(input)
+        self._initialize_input(input)
 
         if self.store_intermediate_snapshots:
             self.intermediate_snapshots.add_snapshot(self.graph_of_operations.snapshot)

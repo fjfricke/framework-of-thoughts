@@ -11,12 +11,12 @@ from ..abstract_operation import AbstractOperation
 
 class LLMOperationWithLogprobs(AbstractOperation):
     """
-    LLM operation.
+    LLM operation that returns tokens and logprobs.
     """
 
     def __init__(self, llm: AbstractLanguageModel, prompter: Callable[..., str], parser: Callable[[list[tuple[str, float]]], dict[str, any]], use_cache: bool = True, params: dict = None, input_types: ReasoningStateType = None, output_types: ReasoningStateType = None, name: str = None, cache_seed: CacheSeed = None):
         """
-        Initialize the BaseLLMOperation.
+        Initialize the LLMOperationWithLogprobs.
 
         :param llm: The language model to use.
         :param prompter: A callable that generates a prompt. It can take named arguments corresponding to the input keys.

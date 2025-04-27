@@ -14,9 +14,32 @@ from .helpers.node_state import NodeState
 class AbstractOperation(ABC):
     """
     Abstract base class for all graph operations.
+
+    This class defines the structure and behavior of operations that can be executed
+    within a graph of operations. It includes methods for execution, validation of
+    input and output reasoning states, and caching.
+
+    Attributes:
+        params (dict): Parameters for the operation.
+        cache (dict): Cache for storing intermediate results.
+        node_state (NodeState): Current state of the node.
+        input_types (ReasoningStateType): Expected types for input reasoning states.
+        output_types (ReasoningStateType): Expected types for output reasoning states.
+        output_reasoning_states (dict): Resulting reasoning states after execution.
+        name (str): Name of the operation.
+        logger (logging.Logger): Logger for the operation.
     """
 
     def __init__(self, input_types: ReasoningStateType, output_types: ReasoningStateType, params: dict = None, name: str = None):
+        """
+        Initialize an AbstractOperation instance.
+
+        Args:
+            input_types (ReasoningStateType): Expected types for input reasoning states.
+            output_types (ReasoningStateType): Expected types for output reasoning states.
+            params (dict, optional): Parameters for the operation. Defaults to None.
+            name (str, optional): Name of the operation. Used in visualization and logging. Defaults to the class name.
+        """
         self.params = params
         self.cache = {}
         self.node_state = NodeState.WAITING
@@ -28,6 +51,16 @@ class AbstractOperation(ABC):
 
     @classmethod
     def factory(cls, **kwargs) -> AbstractOperationFactoryWithParams:
+        """
+        Create a factory for the operation.
+
+        Args:
+            **kwargs: Initial parameters for the operation.
+
+        Returns:
+            AbstractOperationFactoryWithParams: A callable factory that can create
+            instances of the operation with additional parameters.
+        """
         def factory_without_params(**later_kwargs) -> AbstractOperationFactory:
             # Combine initial kwargs with later_kwargs
             combined_kwargs = {**kwargs, **later_kwargs}
@@ -37,9 +70,35 @@ class AbstractOperation(ABC):
 
     @abstractmethod
     async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement | MeasurementsWithCache | None]:
+        """
+        Abstract method to execute the operation. Needs to be implemented by the operation.
+
+        Args:
+            partitions (GraphPartitions): Partitions of the graph.
+            input_reasoning_states (ReasoningState): Input reasoning states.
+
+        Returns:
+            tuple[ReasoningState, Measurement | MeasurementsWithCache | None]:
+            Resulting reasoning states and measurements.
+        """
         pass
 
     async def execute(self, graph: GraphOfOperations) -> Measurement | MeasurementsWithCache:
+        """
+        Execute the operation within a graph.
+
+        Args:
+            graph (GraphOfOperations): The graph containing the operation.
+
+        Returns:
+            Measurement | MeasurementsWithCache: Measurements resulting from the execution.
+
+        Raises:
+            TypeError: If input or output reasoning states are invalid.
+            KeyError: If required keys are missing in input or output reasoning states.
+            ValueError: If input reasoning states are not set.
+            OperationFailed: If the operation cannot handle failed predecessors.
+        """
         input_reasoning_states = graph.get_input_reasoning_states(self)
         
         # Validate input_reasoning_states

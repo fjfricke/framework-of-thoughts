@@ -10,11 +10,20 @@ from .helpers.language_model_config import Config, LLMResponseType
 
 class AbstractLanguageModel(ABC):
     """
-    Abstract base class that defines the interface for all language models.
+    Abstract base class that defines the interface for all language models. Inherit from this to create a new LLM.
     """
 
     @abstractmethod
     def __init__(self, config: Config, llm_response_type: LLMResponseType = LLMResponseType.TEXT, execution_cost: float = 1, cache: CacheContainer = None):
+        """
+        Initialize the language model. Should be done outside of the controller factory.
+
+        Args:
+            config (Config): Configuration for the language model.
+            llm_response_type (LLMResponseType, optional): Type of response expected from the language model. Defaults to LLMResponseType.TEXT.
+            execution_cost (float, optional): Cost of executing the language model. Defaults to 1.
+            cache (CacheContainer, optional): Cache container. Defaults to None.
+        """
         self._config = config
         self._execution_cost = execution_cost
         self.llm_response_type = llm_response_type
@@ -25,7 +34,9 @@ class AbstractLanguageModel(ABC):
     def additional_cache_identifiers(self) -> dict[str, object]:
         """
         Additional identifiers for the persistent cache besides Config and class.
-        :return: A dictionary of additional identifiers for the cache. Values need to be json serializable.
+
+        Returns:
+            dict[str, object]: A dictionary of additional identifiers for the cache. Values need to be JSON serializable.
         """
         pass
     
@@ -33,6 +44,9 @@ class AbstractLanguageModel(ABC):
     def cache_identifiers(self) -> LLMCacheKey:
         """
         Identifiers for the persistent cache.
+
+        Returns:
+            LLMCacheKey: Cache key containing the language model type, configuration, and additional identifiers.
         """
         return LLMCacheKey(
             llm_type=self.__class__,
@@ -43,13 +57,27 @@ class AbstractLanguageModel(ABC):
     @abstractmethod
     async def _raw_query(self, prompt: str) -> tuple[LLMOutput, Measurement]:
         """
-        Query the language model with a prompt.
+        Query the language model with a prompt. Needs to be implemented by the LLM.
+
+        Args:
+            prompt (str): The input prompt for the language model.
+
+        Returns:
+            tuple[LLMOutput, Measurement]: The output from the language model and associated measurement.
         """
         pass
 
     async def query(self, prompt: str, use_cache: bool = True, cache_seed: CacheSeed = None) -> tuple[LLMOutput, Measurement]:
         """
         Query the language model with caching.
+
+        Args:
+            prompt (str): The input prompt for the language model.
+            use_cache (bool, optional): Whether to use caching for the query. Defaults to True.
+            cache_seed (CacheSeed, optional): Extra identifier for cache lookup. Use when the same prompt should generate different answers in the graph. Defaults to None.
+
+        Returns:
+            tuple[LLMOutput, Measurement]: The output from the language model and associated measurement, including measurements.
         """
 
         # Check if the prompt is in the cache

@@ -13,6 +13,22 @@ from llm_graph_optimizer.measurement.process_measurement import ProcessMeasureme
 from llm_graph_optimizer.operations.helpers.exceptions import GraphExecutionFailed
 
 class DatasetEvaluator:
+    """
+    Evaluates a dataset using a graph of operations and calculates scores.
+
+    This class manages the evaluation of a dataset by executing a graph of operations, measuring performance, and calculating scores
+    based on user-defined metrics.
+
+    Attributes:
+        controller_factory (ControllerFactory): Function that creates a controller.
+        calculate_score (Callable[[ReasoningState | None, ProcessMeasurement, any], dict[ScoreParameter, float]]):
+            Function to calculate scores from reasoning states and measurements.
+        dataloader_factory (Callable[[], Iterator[tuple[ReasoningState, any]]]): Function that creates a dataloader.
+        parameters (DatasetEvaluatorParameters): Parameters for dataset evaluation.
+        dataset_measurement (DatasetMeasurement): Stores measurements and scores for the dataset.
+        save_cache_on_completion_to (CacheContainer): Cache container to save persistent cache upon completion.
+    """
+
     def __init__(
         self,
         calculate_score: Callable[[ReasoningState | None, ProcessMeasurement, any], dict[ScoreParameter, float]],
@@ -21,6 +37,16 @@ class DatasetEvaluator:
         controller_factory: ControllerFactory = None,
         save_cache_on_completion_to: CacheContainer = None,
     ):
+        """
+        Initialize a DatasetEvaluator instance.
+
+        Args:
+            calculate_score (Callable): Function to calculate scores from reasoning states and measurements.
+            dataloader_factory (Callable): Factory to create a dataloader.
+            parameters (DatasetEvaluatorParameters): Parameters for dataset evaluation.
+            controller_factory (ControllerFactory, optional): Factory to create controllers for graph execution. Defaults to None.
+            save_cache_on_completion_to (CacheContainer, optional): Cache container to save persistent cache upon completion. Defaults to None.
+        """
         self.controller_factory = controller_factory
         self.calculate_score = calculate_score
         self.dataloader_factory = dataloader_factory
@@ -29,6 +55,7 @@ class DatasetEvaluator:
         self.dataset_measurement = DatasetMeasurement()
         self.dataset_measurement.add_dataset_evaluator_parameters(parameters)
         self.save_cache_on_completion_to = save_cache_on_completion_to
+
     def set_controller_factory(self, controller_factory: ControllerFactory):
         self.controller_factory = controller_factory
 
@@ -41,6 +68,18 @@ class DatasetEvaluator:
         return 2 * t_score * std_err
 
     async def evaluate_dataset(self, max_concurrent: int = 1) -> dict[ScoreParameter, np.float64]:
+        """
+        Evaluate the dataset by executing reasoning states through the graph of operations.
+
+        Args:
+            max_concurrent (int, optional): Maximum number of concurrent workers. Defaults to 1.
+
+        Returns:
+            dict[ScoreParameter, np.float64]: Calculated scores for each score parameter.
+
+        Raises:
+            ValueError: If the controller factory is not set.
+        """
         if self.controller_factory is None:
             raise ValueError("Controller factory is not set")
         self.dataloader = self.dataloader_factory()

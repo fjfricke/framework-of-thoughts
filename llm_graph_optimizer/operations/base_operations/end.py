@@ -5,7 +5,7 @@ from llm_graph_optimizer.measurement.measurement import Measurement
 from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
 class End(AbstractOperation):
     """
-    End operation.
+    End operation. Needs to be the last operation in the graph.
     """
 
     def __init__(self, input_types: ReasoningStateType = None):

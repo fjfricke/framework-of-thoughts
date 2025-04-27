@@ -26,6 +26,10 @@ class OpenAIChat(AbstractLanguageModel):
         :param model: The OpenAI model to use (e.g., "gpt-4").
         :param request_price_per_token: Price per token for requests.
         :param response_price_per_token: Price per token for responses.
+        :param config: Configuration for the language model.
+        :param execution_cost: Cost of executing the language model.
+        :param cache: Cache container.
+        :param openai_rate_limiter: OpenAI rate limiter.
         """
         super().__init__(config, LLMResponseType.TEXT, execution_cost, cache)
         load_dotenv()

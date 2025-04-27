@@ -14,14 +14,27 @@ class GraphOfOperations(BaseGraph):
     """
 
     def __init__(self, graph: nx.MultiDiGraph = None):
+        """
+        Initialize the GraphOfOperations.
+
+        :param graph: An optional MultiDiGraph object to initialize the graph. Usually created empty.
+        """
         super().__init__(graph)
     
     @property
     def processable_nodes(self) -> list["AbstractOperation"]:
+        """
+        Get all nodes in the graph that are in a processable state.
+
+        :return: A list of processable nodes.
+        """
         processable_nodes = [node for node in self._graph.nodes if node.node_state == NodeState.PROCESSABLE]
         return processable_nodes
     
     def set_next_processable(self):
+        """
+        Set nodes with all predecessors finished to a processable state.
+        """
         # set nodes with all predecessors finished to processable
         for node in self._graph.nodes:
             if all(predecessor.node_state in [NodeState.DONE, NodeState.FAILED] for predecessor in self._graph.predecessors(node)):
@@ -30,31 +43,80 @@ class GraphOfOperations(BaseGraph):
     
     @property
     def all_scheduled(self) -> bool:
+        """
+        Check if all nodes in the graph have been scheduled.
+
+        :return: True if all nodes are scheduled, False otherwise.
+        """
         return all(not node.node_state.not_yet_scheduled for node in self._graph.nodes)
     
     @property
     def all_processed(self) -> bool:
+        """
+        Check if all nodes in the graph have been processed.
+
+        :return: True if all nodes are processed, False otherwise.
+        """
         return all(node.node_state.is_finished for node in self._graph.nodes)
 
     def add_node(self, node: "AbstractOperation"):
+        """
+        Add a node to the graph.
+
+        :param node: The node to add.
+        """
         super()._add_node(node)
 
     def add_edge(self, edge: Edge, order: int=0):
+        """
+        Add an edge to the graph.
+
+        :param edge: The edge to add.
+        :param order: The order of the edge. This is needed when using ManyToOne types to ensure that returned lists are in the order given.
+        """
         super()._add_edge(edge, order)
 
     def add_dependency_edge(self, from_node: "AbstractOperation", to_node: "AbstractOperation"):
+        """
+        Add a dependency edge between two nodes in the graph without reasoning state flow.
+
+        :param from_node: The source node of the dependency.
+        :param to_node: The target node of the dependency.
+        """
         super()._add_dependency_edge(from_node, to_node)
 
     def remove_node(self, node: "AbstractOperation"):
+        """
+        Remove a node from the graph.
+
+        :param node: The node to remove.
+        """
         super()._remove_node(node)
     
     def remove_edge(self, edge: Edge):
+        """
+        Remove an edge from the graph.
+
+        :param edge: The edge to remove.
+        """
         super()._remove_edge(edge)
     
     def update_edge_values(self, from_node: "AbstractOperation", value: dict[NodeKey, any]):
+        """
+        Update the values of edges originating from a specific node.
+
+        :param from_node: The node whose outgoing edges will be updated.
+        :param value: A dictionary of values to update the edges with.
+        """
         super()._update_edge_values(from_node, value)
 
     def get_input_reasoning_states(self, node: "AbstractOperation") -> dict[NodeKey, any]:
+        """
+        Get the input reasoning states for a specific node.
+
+        :param node: The node to retrieve input reasoning states for.
+        :return: A dictionary of an input reasoning state.
+        """
         if node == self.start_node:
             return node.input_reasoning_states
         predecessors = self._graph.predecessors(node)
@@ -82,6 +144,12 @@ class GraphOfOperations(BaseGraph):
         return input_reasoning_states
     
     def partitions(self, node: "AbstractOperation") -> GraphPartitions:
+        """
+        Partition the graph into predecessors, descendants, and exclusive descendants of a node (all containing the node itself).
+
+        :param node: The node to partition the graph around.
+        :return: A GraphPartitions object containing the partitions.
+        """
         all_nodes = set(self._graph.nodes)
 
         # Compute predecessors and descendants
@@ -102,6 +170,11 @@ class GraphOfOperations(BaseGraph):
 
     @property
     def start_node(self) -> "AbstractOperation":
+        """
+        Get the start node of the graph.
+
+        :return: The start node of the graph.
+        """
         # Retrieve the start node from the graph attributes
         if 'start_node' not in self._graph.graph:
             start_nodes = [node for node in self._graph.nodes if self._graph.in_degree(node) == 0]
@@ -112,6 +185,11 @@ class GraphOfOperations(BaseGraph):
 
     @property
     def end_node(self) -> "AbstractOperation":
+        """
+        Get the end node of the graph.
+
+        :return: The end node of the graph.
+        """
         # Retrieve the end node from the graph attributes
         if 'end_node' not in self._graph.graph:
             end_nodes = [node for node in self._graph.nodes if self._graph.out_degree(node) == 0]

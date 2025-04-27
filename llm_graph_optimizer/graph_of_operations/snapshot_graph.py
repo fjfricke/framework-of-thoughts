@@ -15,20 +15,46 @@ from llm_graph_optimizer.operations.helpers.node_state import NodeState
 
 
 class SnapshotGraphs():
+    """
+    A collection of snapshot graphs representing the state of a graph over time.
+    """
+
     def __init__(self):
+        """
+        Initialize an empty collection of snapshot graphs.
+        """
         self.graphs: list[SnapshotGraph] = []
 
     def add_snapshot(self, snapshot: "SnapshotGraph"):
+        """
+        Add a snapshot graph to the collection.
+
+        :param snapshot: The snapshot graph to add.
+        """
         self.graphs.append(snapshot)
 
     def save(self, path: str):
+        """
+        Save the collection of snapshot graphs to a pickle file.
+
+        :param path: The file path to save the snapshots.
+        """
         pickle.dump(self.graphs, open(path, "wb"))
 
     def load(self, path: str):
+        """
+        Load a collection of snapshot graphs from a picklefile.
+
+        :param path: The file path to load the snapshots from.
+        """
         self.graphs = pickle.load(open(path, "rb"))
 
 
 class SnapshotGraph():
+    """
+    Represents a snapshot of a graph at a specific point in time.
+    """
+
     def __init__(self, graph: MultiDiGraph, start_node: str, end_node: str):
         """
         Do not use this constructor directly. Use <BaseGraph>.create_snapshot or <GraphOfOperations>.create_snapshot instead.
@@ -38,17 +64,39 @@ class SnapshotGraph():
         self._end_node = end_node
 
     def save(self, path: str):
+        """
+        Save the snapshot graph to a pickle file.
+
+        :param path: The file path to save the snapshot.
+        """
         pickle.dump(self._graph, open(path, "wb"))
 
     @classmethod
     def load(cls, path: str):
+        """
+        Load a snapshot graph from a pickle file.
+
+        :param path: The file path to load the snapshot from.
+        :return: The loaded SnapshotGraph instance.
+        """
         return cls(pickle.load(open(path, "rb")))
     
     @property
     def digraph(self) -> nx.DiGraph:
+        """
+        Get a directed graph representation of the snapshot. This represents the topology of the reasoning graph.
+
+        :return: A directed graph (DiGraph) object.
+        """
         return nx.DiGraph(self._graph)
     
     def longest_path(self, weight: Callable[[str], Number]) -> Number:
+        """
+        Calculate the longest path in the snapshot graph based on a weight function.
+
+        :param weight: A callable that returns the weight of a node.
+        :return: The length of the longest path in the graph.
+        """
         path_digraph = self.digraph.copy()
         #if cycles in the graph raise an error
         if not nx.is_directed_acyclic_graph(path_digraph):
@@ -62,14 +110,46 @@ class SnapshotGraph():
         return nx.dag_longest_path_length(path_digraph, default_weight=0)
 
     def visualize(self, show_multiedges: bool = False, show_keys: bool = False, show_values: bool = False, show_state: bool = False, notebook: bool = False, show_keys_on_arrows: bool = False):
+        """
+        Visualize the snapshot graph.
+
+        :param show_multiedges: Whether to show multiple edges between nodes.
+        :param show_keys: Whether to show keys on edges.
+        :param show_values: Whether to show values on edges.
+        :param show_state: Whether to show node states, color-coded with green for done, yellow for processing, orange for processable, blue for waiting, and red for failed.
+        :param notebook: Whether to display the visualization in a notebook.
+        :param show_keys_on_arrows: Whether to show keys on arrows. Not recommended.
+        :return: An IFrame object if displayed in a notebook, otherwise None.
+        """
         if show_multiedges:
             logging.warning("show_multiedges does not work well with hierarchical layout. I recommend not to use it.")
         return self._view_or_save_visualization(show_multiedges, show_keys, show_values, show_state, notebook=notebook, show_keys_on_arrows=show_keys_on_arrows)
     
     def save_visualization(self, show_multiedges: bool = True, show_keys: bool = False, show_values: bool = False, show_state: bool = False, save_path: str = None):
+        """
+        Save the visualization of the snapshot graph to a file.
+
+        :param show_multiedges: Whether to show multiple edges between nodes.
+        :param show_keys: Whether to show keys on edges.
+        :param show_values: Whether to show values on edges.
+        :param show_state: Whether to show node states. Color-coded with green for done, yellow for processing, orange for processable, blue for waiting, and red for failed.
+        :param save_path: The file path to save the visualization.
+        """
         return self._view_or_save_visualization(show_multiedges, show_keys, show_values, show_state, save_path=save_path)
 
     def _view_or_save_visualization(self, show_multiedges: bool = True, show_keys: bool = False, show_values: bool = False, show_state: bool = False, notebook: bool = None, save_path: str = None, show_keys_on_arrows: bool = False) -> IFrame | None:
+        """
+        Internal method to view or save the visualization of the snapshot graph.
+
+        :param show_multiedges: Whether to show multiple edges between nodes.
+        :param show_keys: Whether to show keys on edges.
+        :param show_values: Whether to show values on edges.
+        :param show_state: Whether to show node states.
+        :param notebook: Whether to display the visualization in a notebook.
+        :param save_path: The file path to save the visualization.
+        :param show_keys_on_arrows: Whether to show keys on arrows.
+        :return: An IFrame object if displayed in a notebook, otherwise None.
+        """
         nt = self._create_view(show_multiedges, show_keys, show_values, show_state, notebook, show_keys_on_arrows)
 
         if notebook:
@@ -87,6 +167,17 @@ class SnapshotGraph():
                     webbrowser.open(f"file://{temp_path}")
 
     def _create_view(self, show_multiedges: bool = True, show_keys: bool = False, show_values: bool = False, show_state: bool = False, notebook: bool = False, show_keys_on_arrows: bool = False) -> Network:
+        """
+        Internal method to create a visualization view of the snapshot graph.
+
+        :param show_multiedges: Whether to show multiple edges between nodes.
+        :param show_keys: Whether to show keys on edges.
+        :param show_values: Whether to show values on edges.
+        :param show_state: Whether to show node states.
+        :param notebook: Whether to display the visualization in a notebook.
+        :param show_keys_on_arrows: Whether to show keys on arrows.
+        :return: A Network object representing the visualization.
+        """
         nt = Network(height='600px', width='100%', directed=True, cdn_resources="remote" if not notebook else "in_line", filter_menu=True, notebook=notebook)
         graph = copy.deepcopy(self._graph)
 

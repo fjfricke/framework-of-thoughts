@@ -14,7 +14,7 @@ from llm_graph_optimizer.language_models.cache.cache import CacheContainer
 
 class OpenAIChatWithLogprobs(AbstractLanguageModel):
     """
-    Implementation of AbstractLanguageModel using OpenAI's ChatCompletion API.
+    Implementation of AbstractLanguageModel using OpenAI's ChatCompletion API returning tokens and logprobs.
     """
 
     def __init__(self, api_key=None, model: str = "gpt-4", request_price_per_token: float = 0.03, response_price_per_token: float = 0.06, config: Config = Config(), execution_cost: float = 1, cache: CacheContainer = None, openai_rate_limiter: OpenAIRateLimiter = None):
@@ -25,6 +25,10 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
         :param model: The OpenAI model to use (e.g., "gpt-4").
         :param request_price_per_token: Price per token for requests.
         :param response_price_per_token: Price per token for responses.
+        :param config: Configuration for the language model.
+        :param execution_cost: Cost of executing the language model.
+        :param cache: Cache container.
+        :param openai_rate_limiter: OpenAI rate limiter.
         """
         super().__init__(config, LLMResponseType.TOKENS_AND_LOGPROBS, execution_cost, cache)
         load_dotenv()

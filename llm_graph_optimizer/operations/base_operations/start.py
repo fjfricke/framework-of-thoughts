@@ -4,7 +4,7 @@ from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
 from llm_graph_optimizer.measurement.measurement import Measurement
 class Start(AbstractOperation):
     """
-    Start operation.
+    Start operation. Needs to be the first operation in the graph.
     """
 
     def __init__(self, input_types: ReasoningStateType = None, output_types: ReasoningState = None, static_outputs: ReasoningState = {}):
