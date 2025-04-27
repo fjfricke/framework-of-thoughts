@@ -1,11 +1,10 @@
 import asyncio
-import logging
 
 from examples.sorting.programs.io import io_controller
 from examples.sorting.programs.cot import cot_controller
 from examples.sorting.programs.tot import tot_controller
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 
 async def run_controllers(input_list, expected_output):
     for controller in [io_controller(), cot_controller(), tot_controller()]:

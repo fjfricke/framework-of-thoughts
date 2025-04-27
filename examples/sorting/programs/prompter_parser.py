@@ -1,10 +1,15 @@
+# The prompts are based on tge GoT paper: https://github.com/spcl/graph-of-thoughts
+# and were adapted for this survey: https://github.com/simonmalberg/llm-graph-based-problem-solving
+
 # Initialize the LLM generate operation and node
 import ast
 import logging
 from typing import TypedDict
-from collections import Counter
+
+from typeguard import TypeCheckError, check_type
 
 from llm_graph_optimizer.graph_of_operations.types import ReasoningState
+from llm_graph_optimizer.operations.helpers.exceptions import OperationFailed
 
 
 def generate_prompt(input_list: list[int]):
@@ -99,40 +104,109 @@ Input: {input_list}
 Incorrectly Sorted: {incorrectly_sorted}
 """
 
+def got_split_prompt(input_list: list[int]):
+    return f"""<Instruction> Split the following list of 128 numbers into 8 lists of 16 numbers each, the first list should contain the first 16 numbers, the second list the second 16 numbers, the third list the third 16 numbers, the fourth list the fourth 16 numbers, the fifth list the fifth 16 numbers and so on.
+Only output the final 8 lists in the following format without any additional text or thoughts!:
+{{
+    "List 1": [3, 4, 3, 5, 7, 8, 1, ...],
+    "List 2": [2, 9, 2, 4, 7, 1, 5, ...],
+    "List 3": [6, 9, 8, 1, 9, 2, 4, ...],
+    "List 4": [9, 0, 7, 6, 5, 6, 6, ...]
+}} </Instruction>
+
+<Example>
+Input: [3, 1, 9, 3, 7, 5, 5, 4, 8, 1, 5, 3, 3, 2, 3, 0, 9, 7, 2, 2, 4, 4, 8, 5, 0, 8, 7, 3, 3, 8, 7, 0, 9, 5, 1, 6, 7, 6, 8, 9, 0, 3, 0, 6, 3, 4, 8, 0, 6, 9, 8, 4, 1, 2, 9, 0, 4, 8, 8, 9, 9, 8, 5, 9]
+Output: 
+{{
+    "List 1": [3, 1, 9, 3, 7, 5, 5, 4, 8, 1, 5, 3, 3, 2, 3, 0],
+    "List 2": [9, 7, 2, 2, 4, 4, 8, 5, 0, 8, 7, 3, 3, 8, 7, 0],
+    "List 3": [9, 5, 1, 6, 7, 6, 8, 9, 0, 3, 0, 6, 3, 4, 8, 0],
+    "List 4": [6, 9, 8, 4, 1, 2, 9, 0, 4, 8, 8, 9, 9, 8, 5, 9]
+}}
+</Example>
+
+Input: {input_list}"""
+
+class GotSplitOutput(TypedDict):
+    output1: list[int]
+    output2: list[int]
+    output3: list[int]
+    output4: list[int]
+
+def got_split_parser(text: str) -> GotSplitOutput:
+    try:
+        start_index = text.index("{")
+        end_index = text.rindex("}") + 1
+        parsed_data = ast.literal_eval(text[start_index:end_index])
+        lists = [values for key, values in parsed_data.items()]
+        try:
+            check_type(lists, list[list[int]])
+            if len(lists) != 4:
+                raise OperationFailed(f"Invalid number of lists: {len(lists)}")
+            return {"output1": lists[0], "output2": lists[1], "output3": lists[2], "output4": lists[3]}
+        except TypeCheckError:
+            raise OperationFailed(f"Invalid output type: {type(lists)}")
+    except (ValueError, SyntaxError) as e:
+        raise OperationFailed(f"Error parsing text: {e}")
+        
+
+def got_aggregate_prompt(input1: list[int], input2: list[int]):
+    len_input1 = len(input1)
+    len_input2 = len(input2)
+    if len_input1 == len_input2:
+        length = len_input1
+    elif len_input1 + len_input2 - 32 <= 16:
+        length = 16
+    elif len_input1 + len_input2 - 64 <= 32:
+        length = 32
+    else:
+        length = 64
+    length1 = length
+    length2 = length * 2
+    return f"""<Instruction> Merge the following 2 sorted lists of length {length1} each, into one sorted list of length {length2} using a merge sort style approach.
+Only output the final merged list without any additional text or thoughts!:</Instruction>
+
+<Approach>
+To merge the two lists in a merge-sort style approach, follow these steps:
+1. Compare the first element of both lists.
+2. Append the smaller element to the merged list and move to the next element in the list from which the smaller element came.
+3. Repeat steps 1 and 2 until one of the lists is empty.
+4. Append the remaining elements of the non-empty list to the merged list.
+</Approach>
+
+Merge the following two lists into one sorted list:
+1: {input1}
+2: {input2}
+
+Merged list:
+"""
+
 class ParserOutput(TypedDict):
     output: list[int]
 
 def generate_parser(text: str) -> ParserOutput:
-    answers = text.strip().split("\n")
-    answers = [
-        answer for answer in answers if "[" in answer and "]" in answer
-    ]
-    if any(["Output" in answer for answer in answers]):
+    answer = text.strip()
+    if "Output" in answer:
         # cut elements until last output is found
-        for answer in reversed(answers):
-            if "Output" in answer:
-                answers = answers[answers.index(answer) :]
-                break
-
-    answers = [
-        answer[answer.index("[") : answer.index("]") + 1]
-        for answer in answers
-    ]
-    if len(answers) == 0:
-        logging.warning(
-            f"Could not parse step answer: {text}. Returning empty list."
-        )
-        answer = []
-    else:
-        if len(answers) > 1:
+        last_output_index = answer.rfind("Output")
+        if last_output_index != -1:
+            answer = answer[last_output_index + len("Output") :]
+        else:
             logging.warning(
-                f"Multiple answers found for step answer: {text}. Using the first one."
+                f"Could not find 'Output' in the text: {text}. Returning empty list."
             )
-        try:
-            answer = ast.literal_eval(answers[0])
-        except (ValueError, SyntaxError) as e:
-            logging.error(f"Failed to parse answer: {answers[0]}. Error: {e}")
-            answer = []
+            return {"output": []}
+
+    if "[" in answer and "]" in answer:
+        answer = answer[answer.rindex("[") : answer.rindex("]") + 1]
+    else:
+        logging.warning("Could not find '[' or ']' in the text. Returning empty list.")
+        return {"output": []}
+    try:
+        answer = ast.literal_eval(answer)
+    except (ValueError, SyntaxError) as e:
+        logging.error(f"Failed to parse answer: {answer[0]}. Error: {e}")
+        answer = []
     return {"output": answer}
 
 def scoring_function(output: list[int], expected_output: list[int]) -> int:
@@ -166,12 +240,11 @@ def scoring_function(output: list[int], expected_output: list[int]) -> int:
         return 300  # Return a high error score in case of failure
     
 def filter_function(outputs: list[list[int]], scores: list[int]) -> ReasoningState:
-    # Flatten the outputs and count occurrences
-    flattened_outputs = [tuple(output) for output in outputs]
-    most_common_output, _ = Counter(flattened_outputs).most_common(1)[0]
+    # Find the index of the smallest score
+    min_score_index = scores.index(min(scores))
 
-    # Find the corresponding score for the most common output
-    index = outputs.index(list(most_common_output))
-    most_common_score = scores[index]
+    # Get the output corresponding to the smallest score
+    best_output = outputs[min_score_index]
+    best_score = scores[min_score_index]
 
-    return {"output": list(most_common_output), "score": most_common_score}
+    return {"output": best_output, "score": best_score}
