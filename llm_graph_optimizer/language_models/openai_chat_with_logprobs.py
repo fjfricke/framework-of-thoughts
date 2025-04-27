@@ -3,10 +3,12 @@ import backoff
 from httpx import AsyncClient
 from dotenv import load_dotenv
 from os import getenv
+import tiktoken
 
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
 from llm_graph_optimizer.language_models.helpers.language_model_config import Config, LLMResponseType
 from llm_graph_optimizer.language_models.helpers.last_request_timer import TimingAsyncHTTPTransport
+from llm_graph_optimizer.language_models.helpers.openai_rate_limiter import OpenAIRateLimiter
 from llm_graph_optimizer.measurement.measurement import Measurement
 from llm_graph_optimizer.language_models.cache.cache import CacheContainer
 
@@ -15,7 +17,7 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
     Implementation of AbstractLanguageModel using OpenAI's ChatCompletion API.
     """
 
-    def __init__(self, api_key=None, model: str = "gpt-4", request_price_per_token: float = 0.03, response_price_per_token: float = 0.06, config: Config = Config(), execution_cost: float = 1, cache: CacheContainer = None):
+    def __init__(self, api_key=None, model: str = "gpt-4", request_price_per_token: float = 0.03, response_price_per_token: float = 0.06, config: Config = Config(), execution_cost: float = 1, cache: CacheContainer = None, openai_rate_limiter: OpenAIRateLimiter = None):
         """
         Initialize the OpenAIChat model.
 
@@ -36,8 +38,8 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
 
         transport = TimingAsyncHTTPTransport()
         http_client = AsyncClient(transport=transport)
-        self.client = AsyncOpenAI(api_key=api_key, http_client=http_client)
-
+        self._client = AsyncOpenAI(api_key=api_key, http_client=http_client)
+        self._openai_rate_limiter = openai_rate_limiter
     @property
     def additional_cache_identifiers(self) -> dict[str, object]:
         """
@@ -49,7 +51,7 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
             "response_price_per_token": self.response_price_per_token
         }
 
-    @backoff.on_exception(backoff.expo, OpenAIError, max_time=10, max_tries=6)
+    @backoff.on_exception(backoff.expo, OpenAIError, max_time=120, max_tries=6)
     async def _raw_query(self, prompt: str) -> tuple[list[str, float], Measurement | None]:
         """
         Query the OpenAI Legacy Completions API and return metadata.
@@ -58,16 +60,37 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
         """
 
         messages = [{"role": "user", "content": prompt}]
+
+        if self._openai_rate_limiter:
+            try:
+                enc = tiktoken.encoding_for_model(self.model)
+            except KeyError:
+                enc = tiktoken.get_encoding("cl100k_base")  # fallback since tiktoken is not up-to-date (It is the same tokenizer for newer models)
+            prompt_tokens = len(enc.encode(prompt))
+            estimated_response_tokens = self._config.max_tokens or 1000
+            await self._openai_rate_limiter.acquire(prompt_tokens + estimated_response_tokens)
         
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            logprobs=True,
-            temperature=self._config.temperature,
-            max_tokens=self._config.max_tokens,
-            stop=self._config.stop
-        )
-        duration = self.client._client._transport.last_duration
+        try:
+            response = await self._client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                logprobs=True,
+                temperature=self._config.temperature,
+                max_tokens=self._config.max_tokens,
+                stop=self._config.stop
+            )
+        finally:
+            if self._openai_rate_limiter:
+                headers = (
+                    self._client._client._transport.last_response.headers
+                )
+                await self._openai_rate_limiter.sync_from_headers(headers)
+
+        if self._openai_rate_limiter:
+            delta = (prompt_tokens + estimated_response_tokens) - response.usage.total_tokens
+            await self._openai_rate_limiter.adjust_tokens(delta)
+
+        duration = self._client._client._transport.last_duration
 
         output_with_logprobs = [(content.token, content.logprob) for content in response.choices[0].logprobs.content]
 
