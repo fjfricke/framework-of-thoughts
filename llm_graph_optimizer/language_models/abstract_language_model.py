@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import copy
 import logging
 from llm_graph_optimizer.language_models.cache.cache import CacheContainer, CacheCategory, CacheEntry, CacheKey
 from llm_graph_optimizer.language_models.cache.types import LLMCacheKey, CacheSeed
@@ -59,16 +60,24 @@ class AbstractLanguageModel(ABC):
                 self.logger.debug(f"Cache hit for {self.cache_identifiers} with prompt {prompt} and cache seed {cache_seed}.")
                 if cache_category == CacheCategory.PROCESS:
                     measurements = MeasurementsWithCache(
-                        no_cache=no_cache_measurement,
+                        no_cache=copy.deepcopy(no_cache_measurement),
                         with_process_cache=Measurement(),
                         with_persistent_cache=Measurement()
                     )
                 elif cache_category == CacheCategory.PERSISTENT:
                     measurements = MeasurementsWithCache(
-                        no_cache=no_cache_measurement,
-                        with_process_cache=no_cache_measurement,
+                        no_cache=copy.deepcopy(no_cache_measurement),
+                        with_process_cache=copy.deepcopy(no_cache_measurement),
                         with_persistent_cache=Measurement()
                     )
+                    self.cache.set(CacheKey(self.cache_identifiers, prompt, cache_seed), CacheEntry(response, no_cache_measurement))
+                elif cache_category == CacheCategory.VIRTUAL_PERSISTENT:
+                    measurements = MeasurementsWithCache(
+                        no_cache=copy.deepcopy(no_cache_measurement),
+                        with_process_cache=copy.deepcopy(no_cache_measurement),
+                        with_persistent_cache=copy.deepcopy(no_cache_measurement)
+                    )
+                    self.cache.set(CacheKey(self.cache_identifiers, prompt, cache_seed), CacheEntry(response, no_cache_measurement))
                 else:
                     raise ValueError(f"Invalid cache category: {cache_category}")
                 return response, measurements
@@ -82,7 +91,7 @@ class AbstractLanguageModel(ABC):
             self.cache.set(CacheKey(self.cache_identifiers, prompt, cache_seed), CacheEntry(response, measurement))
 
         return response, MeasurementsWithCache(
-            no_cache=measurement,
-            with_process_cache=measurement,
-            with_persistent_cache=measurement
+            no_cache=copy.deepcopy(measurement),
+            with_process_cache=copy.deepcopy(measurement),
+            with_persistent_cache=copy.deepcopy(measurement)
         )

@@ -82,6 +82,8 @@ class DatasetEvaluator:
                 except GraphExecutionFailed as e:
                     output_reasoning_state = None
                     measurement = e.process_measurement
+                if self.save_cache_on_completion_to is not None:
+                    self.save_cache_on_completion_to.clear_process_cache()
                 self.dataset_measurement.add_measurement(i, measurement)
                 scores = self.calculate_score(output_reasoning_state, measurement, ground_truth)
                 for param, score in scores.items():
