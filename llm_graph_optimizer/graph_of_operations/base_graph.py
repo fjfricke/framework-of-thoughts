@@ -40,7 +40,7 @@ class BaseGraph(ABC):
             G_copy.nodes[node]['label'] = inverse_mapping[node].name
             G_copy.nodes[node]['state'] = inverse_mapping[node].node_state
 
-        return SnapshotGraph(G_copy)
+        return SnapshotGraph(G_copy, str(self.start_node), str(self.end_node))
 
     def _add_node(self, node: "AbstractOperation"):
         self._graph.add_node(node)

@@ -1,14 +1,16 @@
 import copy
 import logging
+from numbers import Number
 import pickle
 import tempfile
+from typing import Callable
 from networkx import DiGraph, MultiDiGraph
 from pyvis.network import Network
 from IPython.display import IFrame
 import webbrowser
 import json
 import base64
-
+import networkx as nx
 from llm_graph_optimizer.operations.helpers.node_state import NodeState
 
 
@@ -27,11 +29,13 @@ class SnapshotGraphs():
 
 
 class SnapshotGraph():
-    def __init__(self, graph: MultiDiGraph):
+    def __init__(self, graph: MultiDiGraph, start_node: str, end_node: str):
         """
         Do not use this constructor directly. Use <BaseGraph>.create_snapshot or <GraphOfOperations>.create_snapshot instead.
         """
         self._graph = graph
+        self._start_node = start_node
+        self._end_node = end_node
 
     def save(self, path: str):
         pickle.dump(self._graph, open(path, "wb"))
@@ -39,17 +43,34 @@ class SnapshotGraph():
     @classmethod
     def load(cls, path: str):
         return cls(pickle.load(open(path, "rb")))
+    
+    @property
+    def digraph(self) -> nx.DiGraph:
+        return nx.DiGraph(self._graph)
+    
+    def longest_path(self, weight: Callable[[str], Number]) -> Number:
+        path_digraph = self.digraph.copy()
+        #if cycles in the graph raise an error
+        if not nx.is_directed_acyclic_graph(path_digraph):
+            raise NotImplementedError("Graph has cycles. Unrolling not implemented yet for calculating the longest path.")
+        # the weight of each edge is the weight of the to_node (adding start_node weight to the edges coming from there)
+        for edge in path_digraph.edges(data=True):
+            edge[2]["weight"] = weight(edge[1])
+            if edge[0] == self._start_node:
+                edge[2]["weight"] += weight(edge[0])
+        
+        return nx.dag_longest_path_length(path_digraph, default_weight=0)
 
-    def visualize(self, show_multiedges: bool = False, show_keys: bool = False, show_values: bool = False, show_state: bool = False, notebook: bool = False):
+    def visualize(self, show_multiedges: bool = False, show_keys: bool = False, show_values: bool = False, show_state: bool = False, notebook: bool = False, show_keys_on_arrows: bool = False):
         if show_multiedges:
             logging.warning("show_multiedges does not work well with hierarchical layout. I recommend not to use it.")
-        return self._view_or_save_visualization(show_multiedges, show_keys, show_values, show_state, notebook=notebook)
+        return self._view_or_save_visualization(show_multiedges, show_keys, show_values, show_state, notebook=notebook, show_keys_on_arrows=show_keys_on_arrows)
     
     def save_visualization(self, show_multiedges: bool = True, show_keys: bool = False, show_values: bool = False, show_state: bool = False, save_path: str = None):
         return self._view_or_save_visualization(show_multiedges, show_keys, show_values, show_state, save_path=save_path)
 
-    def _view_or_save_visualization(self, show_multiedges: bool = True, show_keys: bool = False, show_values: bool = False, show_state: bool = False, notebook: bool = None, save_path: str = None) -> IFrame | None:
-        nt = self._create_view(show_multiedges, show_keys, show_values, show_state, notebook)
+    def _view_or_save_visualization(self, show_multiedges: bool = True, show_keys: bool = False, show_values: bool = False, show_state: bool = False, notebook: bool = None, save_path: str = None, show_keys_on_arrows: bool = False) -> IFrame | None:
+        nt = self._create_view(show_multiedges, show_keys, show_values, show_state, notebook, show_keys_on_arrows)
 
         if notebook:
             html_content = nt.generate_html(notebook=False)  # despite it being a notebook, this has to be false
@@ -65,7 +86,7 @@ class SnapshotGraph():
                     nt.show(temp_path, notebook=False)
                     webbrowser.open(f"file://{temp_path}")
 
-    def _create_view(self, show_multiedges: bool = True, show_keys: bool = False, show_values: bool = False, show_state: bool = False, notebook: bool = False) -> Network:
+    def _create_view(self, show_multiedges: bool = True, show_keys: bool = False, show_values: bool = False, show_state: bool = False, notebook: bool = False, show_keys_on_arrows: bool = False) -> Network:
         nt = Network(height='600px', width='100%', directed=True, cdn_resources="remote" if not notebook else "in_line", filter_menu=True, notebook=notebook)
         graph = copy.deepcopy(self._graph)
 
@@ -89,6 +110,12 @@ class SnapshotGraph():
                     edge_data['title'] = f"{original_edge_data['from_node_key']} -> {original_edge_data['to_node_key']}: {original_edge_data.get('value', 'N/A')}"
                 else:
                     edge_data['title'] = "dependency edge"
+            if show_keys_on_arrows:
+                keys_to_add = f"{original_edge_data['from_node_key']} -> {original_edge_data['to_node_key']}"
+                if "label" not in edge_data:
+                    edge_data['label'] = keys_to_add
+                else:
+                    edge_data['label'] = f"{edge_data['label']}, {keys_to_add}"
 
         # add color to the nodes depending on the state
         if show_state:

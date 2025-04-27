@@ -19,7 +19,7 @@ class DatasetEvaluator:
         dataloader_factory: Callable[[], Iterator[tuple[ReasoningState, any]]],
         parameters: DatasetEvaluatorParameters,
         controller_factory: ControllerFactory = None,
-        save_cache_on_completion_to: CacheContainer = None
+        save_cache_on_completion_to: CacheContainer = None,
     ):
         self.controller_factory = controller_factory
         self.calculate_score = calculate_score
@@ -55,18 +55,14 @@ class DatasetEvaluator:
 
         async def producer(queue: asyncio.Queue):
             for i, item in enumerate(self.dataloader):
-                if i == self.parameters.max_runs:
-                    break
                 if stop_event.is_set():
                     while not queue.empty():
-                        try:
-                            queue.get_nowait()
-                            queue.task_done()
-                        except asyncio.QueueEmpty:
-                            break
+                        queue.get_nowait()
+                        queue.task_done()
+                    break
+                if i == self.parameters.max_runs:
                     break
                 await queue.put((i, item))
-
             # Add termination signals for each worker
             for _ in range(max_concurrent):
                 await queue.put(None)

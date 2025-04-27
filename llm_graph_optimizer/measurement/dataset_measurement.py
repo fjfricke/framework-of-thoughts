@@ -1,5 +1,6 @@
 from dataclasses import dataclass, fields
 from pathlib import Path
+import pickle
 from sys import maxsize
 from typing import Callable
 
@@ -67,6 +68,15 @@ class DatasetEvaluatorParameters:
     min_runs: int = 1
     max_runs: int = maxsize
 
+    def save(self, path: Path):
+        with open(path, "wb") as f:
+            pickle.dump(self, f)
+
+    @classmethod
+    def load(cls, path: Path):
+        with open(path, "rb") as f:
+            return pickle.load(f)
+        
     def to_pd(self) -> pd.DataFrame:
         # Dynamically extract fields from ScoreParameter
         score_param_fields = [field.name for field in fields(ScoreParameter)]
@@ -131,6 +141,15 @@ class DatasetMeasurement:
 
     def calculate_dataset_measurement(self, map: Callable[[list[np.float64]], np.float64]):
         return MappedSequentialAndParallelMeasurementsWithCache.map(map, self.dataset_measurements)
+    
+    def save(self, path: Path):
+        with open(path, "wb") as f:
+            pickle.dump(self, f)
+
+    @classmethod
+    def load(cls, path: Path):
+        with open(path, "rb") as f:
+            return pickle.load(f)
     
     def to_excel(self, path: Path, maps_for_measurements: dict[str, Callable[[np.float64], np.float64]]):
         sheets_data = {}

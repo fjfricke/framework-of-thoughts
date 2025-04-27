@@ -1,13 +1,14 @@
+import copy
 from dataclasses import dataclass, fields
-from typing import Callable, Optional, Generic, TypeVar
+from typing import Callable, Optional
 
 import numpy as np
 import pandas as pd
 
-T = TypeVar('T')
-class SequentialCost(Generic[T]):
-    def __repr__(self):
-        return "<SequentialCost>"
+SEQUENTIAL_COST_FIELDS = {
+    "execution_duration": True,
+    "execution_cost": True,
+}
 
 @dataclass
 class Measurement:
@@ -17,8 +18,13 @@ class Measurement:
     request_cost: Optional[float | np.float64] = 0
     response_cost: Optional[float | np.float64] = 0
     total_cost: Optional[float | np.float64] = 0
-    execution_duration: SequentialCost[Optional[float | np.float64]] = 0
-    execution_cost: SequentialCost[Optional[float | np.float64]] = 0
+    execution_duration: Optional[float | np.float64] = 0
+    execution_cost: Optional[float | np.float64] = 0
+
+    @staticmethod
+    def is_sequential_cost(attr_name: str) -> bool:
+        return SEQUENTIAL_COST_FIELDS.get(attr_name, False)
+
 
     def __add__(self, other: 'Measurement') -> 'Measurement':
         combined_attributes = {
@@ -51,9 +57,9 @@ class MeasurementsWithCache:
     @classmethod
     def from_no_cache_measurement(cls, measurement: Measurement) -> 'MeasurementsWithCache':
         return cls(
-            no_cache=measurement,
-            with_process_cache=measurement,
-            with_persistent_cache=measurement
+            no_cache=copy.deepcopy(measurement),
+            with_process_cache=copy.deepcopy(measurement),
+            with_persistent_cache=copy.deepcopy(measurement)
         )
     
     @staticmethod

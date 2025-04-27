@@ -75,7 +75,8 @@ class Controller:
                     measurement_or_measurements_with_cache = await operation.execute(self.graph_of_operations)
                     if self.process_measurement:
                         self.process_measurement.add_measurement(operation, measurement_or_measurements_with_cache)
-                    # self.graph_of_operations.view_graph_debug(output_name=f"debug_{time.time()}.html")
+                    if debug_params.get("visualize_intermediate_graphs", False):
+                        self.graph_of_operations.snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
                     self.logger.debug("Operation %s completed successfully.", operation.name)
                     operation.node_state = NodeState.DONE
                 except OperationFailed as e:

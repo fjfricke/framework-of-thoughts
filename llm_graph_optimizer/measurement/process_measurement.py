@@ -1,24 +1,26 @@
 from dataclasses import fields
-from typing import Dict, get_origin
+from typing import TYPE_CHECKING, Dict
 
 from llm_graph_optimizer.graph_of_operations.base_graph import BaseGraph
 
-from .measurement import Measurement, MeasurementsWithCache, SequentialCost
-from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
+from .measurement import Measurement, MeasurementsWithCache
+
+if TYPE_CHECKING:
+    from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
 
 
 class ProcessMeasurement:
 
     def __init__(self, graph_of_operations: BaseGraph):
-        self.graph_of_operations = graph_of_operations
-        self.measurement_for_operation: Dict[AbstractOperation, MeasurementsWithCache] = {}
+        self.graph_of_operations = graph_of_operations.snapshot
+        self.measurement_for_operation: Dict[str, MeasurementsWithCache] = {}
 
-    def add_measurement(self, operation: AbstractOperation, measurement_or_measurements_with_cache: Measurement | MeasurementsWithCache):
+    def add_measurement(self, operation: "AbstractOperation", measurement_or_measurements_with_cache: Measurement | MeasurementsWithCache):
         if isinstance(measurement_or_measurements_with_cache, Measurement):
             measurements_with_cache = MeasurementsWithCache.from_no_cache_measurement(measurement_or_measurements_with_cache)
         else:
             measurements_with_cache = measurement_or_measurements_with_cache
-        self.measurement_for_operation[operation] = measurements_with_cache
+        self.measurement_for_operation[str(operation)] = measurements_with_cache
 
     def total_sequential_cost(self) -> MeasurementsWithCache:
         total_measurements = MeasurementsWithCache()
@@ -38,7 +40,7 @@ class ProcessMeasurement:
 
             for attr in fields(measurement):
                 attr_value = getattr(measurement, attr.name)
-                if get_origin(attr.type) == SequentialCost:
+                if measurement.is_sequential_cost(attr.name):
                     # Calculate the longest path in the graph
                     longest_path_cost = self.graph_of_operations.longest_path(
                         weight=lambda from_node: getattr(getattr(self.measurement_for_operation[from_node], measurement_field.name), attr.name, 0) or 0,
