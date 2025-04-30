@@ -174,8 +174,12 @@ cython_debug/
 .pypirc
 
 
-**/dataset/*
+**/dataset_old/*
+examples/hotpotqa/dataset/HotpotQA/*
+
 graphs/*
 **/output/*
 !**/output/experiment*/
 .DS_Store
+
+**/old_studies/*

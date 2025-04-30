@@ -44,7 +44,7 @@ recall_score = ScoreParameter(
 
 parameters = DatasetEvaluatorParameters(
     min_runs=10,
-    max_runs=950,
+    # max_runs=950,
     # max_runs=1000,
     score_parameters=[accuracy_score, f1_score, precision_score, recall_score]
 )

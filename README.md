@@ -65,3 +65,19 @@ A tutorial is provided under `examples/test/tutorial.ipynb` to show how to use t
 - Modelling of graph-based prompting strategies with support for various graph operations and measurements
 - Integration with `optuna` for optimization of hyperparameters
 - Example scripts and datasets to reproduce the results in the research handin.
+
+## Setting the OpenAI API key
+
+Please add an `.env` file to the root of the project with the following:
+
+```
+OPENAI_API_KEY=<your_openai_api_key>
+```
+
+Alternatively, you can also pass the api key directly to the LLM constructor.
+
+```python
+llm = OpenAIChat(api_key="your_openai_api_key", ...) or
+llm_with_logprobs = OpenAIChatWithLogprobs(api_key="your_openai_api_key", ...)
+```
+
