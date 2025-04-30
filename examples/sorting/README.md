@@ -18,3 +18,6 @@ I.e. IO, CoT, ToT and GoT.
 
 To run ProbTree on one example, please refer to the `main.py` file.
 To run a dataset evaluation on ToT, please refer to the `tot_dataset_evaluation.py` file.
+
+## Output
+The results of the dataset evaluation as well as the cache are saved in the `output` folder.

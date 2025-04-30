@@ -24,6 +24,11 @@ from llm_graph_optimizer.schedulers.schedulers import Scheduler
 retriever = get_retriever(Path().resolve() / "examples" / "hotpotqa" / "dataset" / "HotpotQA" / "wikipedia_index_bm25")
 
 def probtree_controller(llm: OpenAIChatWithLogprobs, n_retrieved_docs: int = 5, scaling_factors: list[float] = None, shifting_factors: list[float] = None) -> Controller:
+    """
+    This function creates a controller for the ProbTree algorithm.
+    It takes a language model, a number of retrieved documents, and optional scaling and shifting factors. Do not create the LLM inside the controller generator function. It needs to be shared across controllers to use the same shared cache.
+    It returns a controller that can be used to execute the ProbTree algorithm.
+    """
 
     start_node = Start(
         input_types={"question": str},
@@ -106,11 +111,9 @@ if __name__ == "__main__":
     llm = OpenAIChatWithLogprobs(model=model, config=Config(temperature=0.0), request_price_per_token=OPENAI_PRICING[model]["request_price_per_token"], response_price_per_token=OPENAI_PRICING[model]["response_price_per_token"])
     controller = probtree_controller(llm=llm)
     import asyncio
-    # output = asyncio.run(controller.execute({"question": "What is 1+1?"}))
-    controller.graph_of_operations.snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
-    # output, process_measurement = asyncio.run(controller.execute({"question": "What is the combined population of the population-wise biggest 2 neighbour country of the largest country in Europe by capita?"}))
+    controller.graph_of_operations.snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True)  # Visualizes the operation graph before execution
     output, process_measurement = asyncio.run(controller.execute(input={"question": "Are both Superdrag and Collective Soul rock bands?"}, debug_params={"raise_on_operation_failure": True, "visualize_intermediate_graphs": True}))
-    # [snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True) for snapshot in controller.intermediate_snapshots.graphs]
+    # [snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True) for snapshot in controller.intermediate_snapshots.graphs]  # Visualizes all intermediate execution graphs. Creates a lot of browser windows!
     snapshot_graph = controller.graph_of_operations.snapshot
     snapshot_graph.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
     save_path = Path(os.getcwd()) / "examples" / "hotpotqa" / "output"

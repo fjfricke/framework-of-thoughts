@@ -26,7 +26,7 @@ logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s -
 accuracy_score = ScoreParameter(
     name="mistakes",
     confidence_interval_width=0.95,
-    # acceptable_ci_width=0.05
+    # acceptable_ci_width=0.05  # This sets the early stopping acceptable confidence interval width of each dataset evaluation
 )
 parameters = DatasetEvaluatorParameters(
     min_runs=10,

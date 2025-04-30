@@ -23,3 +23,6 @@ The `programs` folder contains the code for the different prompting strategies t
 
 To run ProbTree on one example, please refer to the `probtree.py` file.
 To run a dataset evaluation or an optimization study, please refer to the `probtree_study.py` file and change the function in the `if __name__ == "__main__":` block.
+
+## Output
+The results of the study as well as the cache are saved in the `output` folder.

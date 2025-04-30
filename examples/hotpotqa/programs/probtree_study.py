@@ -22,7 +22,7 @@ import logging
 logging.getLogger().setLevel(logging.ERROR)
 
 dataset_path = Path(__file__).parent.parent / "dataset" / "HotpotQA" / "hotpot_dev_fullwiki_v1.json"
-dataloader = lambda: HotpotQADatasetLoader(execution_mode=Split.TRAIN, dataset_path=dataset_path, split=0.7, seed=42)
+dataloader = lambda: HotpotQADatasetLoader(execution_mode=Split.TRAIN, dataset_path=dataset_path, split=0.3, seed=42)  # Loads the dataset and sets training and test split. Note that for the paper, the first 30% where used  as training and the last 30%*30% as test set (implementation error.) 
 
 accuracy_score = ScoreParameter(
     name="accuracy",
@@ -31,7 +31,7 @@ accuracy_score = ScoreParameter(
 f1_score = ScoreParameter(
     name="f1",
     confidence_interval_width=0.95,
-    acceptable_ci_width=0.01
+    acceptable_ci_width=0.01  # This sets the early stopping acceptable confidence interval widthof each dataset evaluation
 )
 
 precision_score = ScoreParameter(
@@ -43,9 +43,8 @@ recall_score = ScoreParameter(
 )
 
 parameters = DatasetEvaluatorParameters(
-    min_runs=10,
-    # max_runs=950,
-    # max_runs=1000,
+    min_runs=10,  # Should be > 10 when using the early stopping criterion from the acceptable_ci_width parameter
+    # max_runs=950,  # Can be set for an additional early stopping criterion
     score_parameters=[accuracy_score, f1_score, precision_score, recall_score]
 )
 
@@ -69,12 +68,12 @@ def probtree_study():
         model=model_name,
         config=Config(temperature=0.0),
         request_price_per_token=OPENAI_PRICING[model_name]["request_price_per_token"],
-        response_price_per_token=OPENAI_PRICING[model_name]["response_price_per_token"],
+        response_price_per_token=OPENAI_PRICING[model_name]["response_price_per_token"],  # Set these two for correct pricing measurements
         cache=cache,
         openai_rate_limiter=OpenAIRateLimiter(
             rpm = OPENAI_PRICING[model_name]["RPM"],
             tpm = OPENAI_PRICING[model_name]["TPM"]
-        )
+        )  # Set this to use the OpenAI rate limiter
     )
 
     def controller_factory_with_params(n_retrieved_docs: int, scaling_factors: list[float], shifting_factors: list[float]):
@@ -90,10 +89,8 @@ def probtree_study():
         controller_factory = lambda: controller_factory_with_params(n_retrieved_docs=n_retrieved_docs, scaling_factors=scaling_factors, shifting_factors=shifting_factors)
         return controller_factory
 
-    # study_measurement = StudyMeasurement.load(Path(__file__).parent.parent / "output" / "hotpotqa_probtree_study_scale_or_shift_decomp_score.pkl", skip_on_file_not_found=True)
-
     #to restart a new study
-    optuna.delete_study(study_name="final_probtree_study_parallelism", storage="sqlite:///db.sqlite3")
+    # optuna.delete_study(study_name="final_probtree_study_parallelism", storage="sqlite:///db.sqlite3")
     study_measurement = StudyMeasurement(save_file_path=Path(__file__).parent.parent / "output" / "final_probtree_study.pkl")
 
 
@@ -101,10 +98,9 @@ def probtree_study():
         direction="maximize",
         storage="sqlite:///db.sqlite3",
         study_name="final_probtree_study_parallelism",
-        load_if_exists=True
+        load_if_exists=True  # Set this to load the study from the database and continue the optimization when stopped (e.g. after a crash)
     )
-    # last_trial = sorted(optuna_study.trials, key=lambda t: t.number)[-1]
-    # optuna_study.enqueue_trial(last_trial.params)
+
     study = Study(
         optuna_study=optuna_study,
         metrics=[f1_score],
@@ -114,7 +110,7 @@ def probtree_study():
             parameters=parameters,
             save_cache_on_completion_to=cache,
         ),
-        max_concurrent=40,
+        max_concurrent=40,  # Set this to the number of concurrent datapoints evaluated. This is not the same as the concurrency in the controller.
         study_measurement=study_measurement,
         save_study_measurement_after_each_trial=True
     )

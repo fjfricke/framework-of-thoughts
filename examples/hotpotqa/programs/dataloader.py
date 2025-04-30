@@ -20,9 +20,9 @@ class HotpotQADatasetLoader(Iterator):
         
         split_index = int(len(data) * split)
         if execution_mode == Split.TRAIN:
-            self.data = data[split_index:]
-        else:  # validation
             self.data = data[:split_index]
+        else:  # validation
+            self.data = data[split_index:]
         
         self.execution_mode = execution_mode
         self.index = 0
