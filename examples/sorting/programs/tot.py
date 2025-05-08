@@ -2,6 +2,7 @@
 from llm_graph_optimizer.controller.controller import Controller
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
+from llm_graph_optimizer.language_models.openai_chat import OpenAIChat
 from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
 from llm_graph_optimizer.operations.base_operations.filter_operation import FilterOperation
 from llm_graph_optimizer.schedulers.schedulers import Scheduler
@@ -107,9 +108,10 @@ def tot_controller(llm: AbstractLanguageModel, num_branches: int = 20, improveme
 
 if __name__ == "__main__":
     import asyncio
+    llm = OpenAIChat(model="gpt-3.5-turbo")
     example = [0, 9, 4, 2, 2, 0, 5, 1]
     expected = sorted(example)
-    controller = tot_controller(num_branches=2, improvement_levels=2)
+    controller = tot_controller(llm, num_branches=2, improvement_levels=2)
     controller.graph_of_operations.snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=False, show_keys_on_arrows=False)
     result, measurement = asyncio.run(controller.execute(input={"input_list": example, "expected_output": expected}))
     print(result)
