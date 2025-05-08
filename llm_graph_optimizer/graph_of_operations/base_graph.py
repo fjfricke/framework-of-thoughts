@@ -38,7 +38,7 @@ class BaseGraph(ABC):
         :return: A SnapshotGraph object representing the current graph state.
         """
         # Relabel nodes to strings and remove all parameters
-        mapping = {node: str(node) for node in self._graph.nodes}
+        mapping = {node: node.uuid for node in self._graph.nodes}
         inverse_mapping = {v: k for k, v in mapping.items()}
         G_copy: nx.MultiDiGraph = nx.relabel_nodes(self._graph, mapping, copy=True)
 
@@ -51,7 +51,7 @@ class BaseGraph(ABC):
             G_copy.nodes[node]['label'] = inverse_mapping[node].name
             G_copy.nodes[node]['state'] = inverse_mapping[node].node_state
 
-        return SnapshotGraph(G_copy, str(self.start_node), str(self.end_node))
+        return SnapshotGraph(G_copy, self.start_node.uuid, self.end_node.uuid)
 
     def _add_node(self, node: "AbstractOperation"):
         self._graph.add_node(node)

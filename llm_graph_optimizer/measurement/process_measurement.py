@@ -1,5 +1,6 @@
 from dataclasses import fields
 from typing import TYPE_CHECKING, Dict
+import uuid
 
 from llm_graph_optimizer.graph_of_operations.base_graph import BaseGraph
 
@@ -12,15 +13,15 @@ if TYPE_CHECKING:
 class ProcessMeasurement:
 
     def __init__(self, graph_of_operations: BaseGraph):
-        self.graph_of_operations = graph_of_operations.snapshot
-        self.measurement_for_operation: Dict[str, MeasurementsWithCache] = {}
+        self.snapshot_graph = graph_of_operations.snapshot
+        self.measurement_for_operation: Dict[uuid.UUID, MeasurementsWithCache] = {}
 
     def add_measurement(self, operation: "AbstractOperation", measurement_or_measurements_with_cache: Measurement | MeasurementsWithCache):
         if isinstance(measurement_or_measurements_with_cache, Measurement):
             measurements_with_cache = MeasurementsWithCache.from_no_cache_measurement(measurement_or_measurements_with_cache)
         else:
             measurements_with_cache = measurement_or_measurements_with_cache
-        self.measurement_for_operation[str(operation)] = measurements_with_cache
+        self.measurement_for_operation[operation.uuid] = measurements_with_cache
 
     def total_sequential_cost(self) -> MeasurementsWithCache:
         total_measurements = MeasurementsWithCache()
@@ -42,7 +43,7 @@ class ProcessMeasurement:
                 attr_value = getattr(measurement, attr.name)
                 if measurement.is_sequential_cost(attr.name):
                     # Calculate the longest path in the graph
-                    longest_path_cost = self.graph_of_operations.longest_path(
+                    longest_path_cost = self.snapshot_graph.longest_path(
                         weight=lambda from_node: getattr(getattr(self.measurement_for_operation[from_node], measurement_field.name), attr.name, 0) or 0,
                     )
                     setattr(parallel_measurement, attr.name, longest_path_cost)

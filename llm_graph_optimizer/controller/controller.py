@@ -171,6 +171,10 @@ class Controller:
             worker_task.cancel()
 
         self.logger.debug("Returning final input reasoning states.")
+
+        # Update snapshot graph in the process measurement
+        self.process_measurement.snapshot_graph = self.graph_of_operations.snapshot
+        
         try:
             if self.graph_of_operations.end_node.node_state == NodeState.FAILED:
                 self.logger.error("The output of the final operation failed for input %s.", input)
