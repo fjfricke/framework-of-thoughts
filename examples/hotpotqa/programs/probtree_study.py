@@ -22,7 +22,8 @@ import logging
 logging.getLogger().setLevel(logging.ERROR)
 
 dataset_path = Path(__file__).parent.parent / "dataset" / "HotpotQA" / "hotpot_dev_fullwiki_v1.json"
-dataloader = lambda: HotpotQADatasetLoader(execution_mode=Split.TRAIN, dataset_path=dataset_path, split=0.3, seed=42)  # Loads the dataset and sets training and test split. Note that for the paper, the first 30% where used  as training and the last 30%*30% as test set (implementation error.) 
+dataloader = lambda: HotpotQADatasetLoader(execution_mode=Split.TRAIN, dataset_path=dataset_path, split=0.7, seed=42)  # Loads the dataset and sets training and test split.
+# dataloader = lambda: HotpotQADatasetLoader(execution_mode=Split.VALIDATION, dataset_path=dataset_path, split=0.7, seed=42) # Note that for the paper, the last 30% where used as training and the first 30%*30% as test set (implementation error.) 
 
 accuracy_score = ScoreParameter(
     name="accuracy",
@@ -44,7 +45,7 @@ recall_score = ScoreParameter(
 
 parameters = DatasetEvaluatorParameters(
     min_runs=10,  # Should be > 10 when using the early stopping criterion from the acceptable_ci_width parameter
-    # max_runs=950,  # Can be set for an additional early stopping criterion
+    # max_runs=950,  # Can be set for an additional early stopping criterion, used for validation in the paper
     score_parameters=[accuracy_score, f1_score, precision_score, recall_score]
 )
 
@@ -130,22 +131,29 @@ def probtree_study():
 def test_dataset_evaluation():
     import asyncio
     dataloader = lambda: HotpotQADatasetLoader(execution_mode=Split.VALIDATION, dataset_path=dataset_path, split=0.3, seed=42)
+    # dataloader = lambda: HotpotQADatasetLoader(execution_mode=Split.TRAIN, dataset_path=dataset_path, split=0.7, seed=42) # in the actual evaluation in the paper with max_runs = 950
     cache = CacheContainer.from_persistent_cache_file(Path(__file__).parent.parent / "output" / "cache.pkl", skip_on_file_not_found=True, load_as_virtual_persistent_cache=True)
     llm = OpenAIChatWithLogprobs(
         model="gpt-4.1-mini",
         config=Config(temperature=0.0),
         request_price_per_token=OPENAI_PRICING["gpt-4.1-mini"]["request_price_per_token"],
         response_price_per_token=OPENAI_PRICING["gpt-4.1-mini"]["response_price_per_token"],
-        cache=cache
+        cache=cache,
+        openai_rate_limiter=OpenAIRateLimiter(
+            rpm = OPENAI_PRICING["gpt-4.1-mini"]["RPM"],
+            tpm = OPENAI_PRICING["gpt-4.1-mini"]["TPM"]
+        )
     )
     controller_factory = lambda: probtree_controller(llm, n_retrieved_docs=8, scaling_factors=[1.0, 1.172188886586379, 0.8973330433368379], shifting_factors=[0.0, 0.05253448002817633, -0.16389013949880604])
+    # controller_factory = lambda: probtree_controller(llm, n_retrieved_docs=3, scaling_factors=[1.0, 0.9, 1.0], shifting_factors=[0.0, 0.0, 0.0])
     dataset_evaluator = DatasetEvaluator(
         controller_factory=controller_factory,
         calculate_score=calculate_score,
         dataloader_factory=dataloader,
         parameters=parameters
     )
-    scores = asyncio.run(dataset_evaluator.evaluate_dataset(max_concurrent=20))
+    scores = asyncio.run(dataset_evaluator.evaluate_dataset(max_concurrent=10))
+    cache.save_persistent_cache(Path(__file__).parent.parent / "output" / "cache.pkl")
     print(scores)
 if __name__ == "__main__":
     # probtree_study()
