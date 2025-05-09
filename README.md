@@ -5,7 +5,11 @@
 
 ## Installation
 
-To install the project, ensure you have Python 3.12 or higher installed. Then, use `poetry` to set up the environment:
+To install the project, you can use `pip install git+https://github.com/fjfricke/llm-graph-optimizer.git`. Ensure you have Python 3.12 or higher installed.
+
+## Development
+
+To install the project for development purposes or to run the examples, ensure you have Python 3.12 or higher installed. Clone the project. Then, use `poetry` to set up the environment:
 
 ```bash
 poetry install
