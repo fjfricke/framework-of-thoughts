@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{ include = "llm_graph_optimizer" }]
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = ">=3.12,<3.13"
 openai = "^1.70.0"
 backoff = "^2.2.1"
 networkx = "^3.4.2"
@@ -26,11 +26,12 @@ xlsxwriter = "^3.2.3"
 nest-asyncio = "^1.6.0"
 dotenv = "^0.9.9"
 tiktoken = "^0.9.0"
+dspy = "^2.6.23"
 
 [tool.poetry.extras]
 examples = ["jupyter", "bm25s"]
 dataset = ["numpy", "xlsxwriter"]
-optimizer = ["numpy", "xlsxwriter", "optuna", "optuna-dashboard"]
+optimizer = ["numpy", "xlsxwriter", "optuna", "optuna-dashboard", "dspy"]
 dev = ["ruff", "pre-commit"]
 
 [build-system]
