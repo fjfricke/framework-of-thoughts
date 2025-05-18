@@ -67,13 +67,13 @@ class UnderstandingGraphUpdating(AbstractOperation):
         successor_edges = [edge for edge in successor_edges if type(edge.to_node) in [End, UnderstandingGraphUpdating]]
         successor_edges = [edge for edge in successor_edges if edge.to_node_key in ["answer", "decomposition_score"]]
         for successor_edge in successor_edges:
-            partitions.move_edge(current_edge=successor_edge, new_from_node=filter_node, new_from_node_key=successor_edge.to_node_key)
+            partitions.move_edge_start_node(current_edge=successor_edge, new_from_node=filter_node, new_from_node_key=successor_edge.to_node_key)
 
         successor_edges = partitions.descendants.successor_edges(self)
         successor_edges = [edge for edge in successor_edges if type(edge.to_node) is UnderstandingGraphUpdating]
         successor_edges = [edge for edge in successor_edges if edge.to_node_key == "dependency_answers"]
         for successor_edge in successor_edges:
-            partitions.move_edge(current_edge=successor_edge, new_from_node=filter_node, new_from_node_key="answer")
+            partitions.move_edge_start_node(current_edge=successor_edge, new_from_node=filter_node, new_from_node_key="answer")
 
         # move successor edges going to previous aggregate to start at filter node
         to_key_to_from_key = {
@@ -84,7 +84,7 @@ class UnderstandingGraphUpdating(AbstractOperation):
         successor_edges = [edge for edge in successor_edges if type(edge.to_node) is ChildAggregateReasoning]
         successor_edges = [edge for edge in successor_edges if edge.to_node_key in ["subquestion_answers", "child_decomposition_scores"]]
         for successor_edge in successor_edges:
-            partitions.move_edge(current_edge=successor_edge, new_from_node=filter_node, new_from_node_key=to_key_to_from_key[successor_edge.to_node_key])
+            partitions.move_edge_start_node(current_edge=successor_edge, new_from_node=filter_node, new_from_node_key=to_key_to_from_key[successor_edge.to_node_key])
 
         # create understanding nodes for subquestions
         if subquestions:

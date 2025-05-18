@@ -92,10 +92,10 @@ class OneLayerReasoningOnLowScore(AbstractOperation):
         successor_edges = [edge for edge in successor_edges if type(edge.to_node) in [End, OneLayerUnderstanding, PackOperation, OneLayerReasoningOnLowScore]]
         successor_edges_with_answer = [edge for edge in successor_edges if edge.to_node_key in ["answer", "subquestion_answers", "dependency_answers"]]
         for successor_edge in successor_edges_with_answer:
-            partitions.move_edge(current_edge=successor_edge, new_from_node=filter_node, new_from_node_key="answer")
+            partitions.move_edge_start_node(current_edge=successor_edge, new_from_node=filter_node, new_from_node_key="answer")
         successor_edges_with_decomposition_score = [edge for edge in successor_edges if edge.to_node_key in ["decomposition_score", "child_decomposition_scores"]]
         for successor_edge in successor_edges_with_decomposition_score:
-            partitions.move_edge(current_edge=successor_edge, new_from_node=filter_node, new_from_node_key="decomposition_score")
+            partitions.move_edge_start_node(current_edge=successor_edge, new_from_node=filter_node, new_from_node_key="decomposition_score")
         
 
         return {"answer": StateNotSet, "decomposition_score": StateNotSet, "question": question, "dependency_answers": dependency_answers, "max_depth": max_depth}, None

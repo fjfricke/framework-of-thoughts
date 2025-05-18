@@ -12,6 +12,7 @@ from examples.openai_pricing import OPENAI_PRICING
 from llm_graph_optimizer.controller.controller import Controller
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
 from llm_graph_optimizer.graph_of_operations.types import Edge, ManyToOne
+from llm_graph_optimizer.language_models.cache.cache import CacheContainer
 from llm_graph_optimizer.language_models.helpers.language_model_config import Config
 from llm_graph_optimizer.language_models.openai_chat_with_logprobs import OpenAIChatWithLogprobs
 from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
@@ -22,6 +23,7 @@ from llm_graph_optimizer.operations.llm_operations.llm_operation_with_logprobs i
 from llm_graph_optimizer.schedulers.schedulers import Scheduler
 
 retriever = get_retriever(Path().resolve() / "examples" / "hotpotqa" / "dataset" / "HotpotQA" / "wikipedia_index_bm25")
+cache = CacheContainer.from_persistent_cache_file(Path(__file__).parent.parent / "output" / "cache.pkl", skip_on_file_not_found=True, load_as_virtual_persistent_cache=True)
 
 def probtree_controller(llm: OpenAIChatWithLogprobs, n_retrieved_docs: int = 5, scaling_factors: list[float] = None, shifting_factors: list[float] = None) -> Controller:
     """

@@ -62,7 +62,7 @@ class OneLayerUnderstanding(AbstractOperation):
         successor_edges = [edge for edge in successor_edges if type(edge.to_node) is ChildAggregateReasoning]
         successor_edges = [edge for edge in successor_edges if edge.from_node_key in ["subquestion_answers", "child_decomposition_scores"]]
         for successor_edge in successor_edges:
-            partitions.move_edge(current_edge=successor_edge, new_from_node=pack_node, new_from_node_key=successor_edge.from_node_key)
+            partitions.move_edge_start_node(current_edge=successor_edge, new_from_node=pack_node, new_from_node_key=successor_edge.from_node_key)
 
         output_reasoning_states['question_decomposition_score'] = question_decomposition_score
         output_reasoning_states['max_depth'] = max_depth
