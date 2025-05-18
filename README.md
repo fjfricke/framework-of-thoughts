@@ -85,3 +85,6 @@ llm = OpenAIChat(api_key="your_openai_api_key", ...) or
 llm_with_logprobs = OpenAIChatWithLogprobs(api_key="your_openai_api_key", ...)
 ```
 
+# Disclaimer
+
+For the development, Cursor, mainly with Openai GPT 4o, was used; mainly for code completion, repository structuring, refactoring, and error fixing.
