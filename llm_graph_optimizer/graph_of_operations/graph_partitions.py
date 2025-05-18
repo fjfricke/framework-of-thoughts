@@ -60,6 +60,15 @@ class Predecessors(BaseGraph):
         """
         raise PermissionError("Removing edges is forbidden in Predecessors.")
     
+    def predecessor_edges(self, node: "AbstractOperation") -> list[Edge]:
+        """
+        Get the predecessor edges of a node in the Predecessors subgraph.
+
+        :param node: The node to retrieve predecessor edges for.
+        :return: A list of predecessor edges.
+        """
+        return Edge.from_edge_view(self._graph.in_edges(node, data=True))
+    
     @property
     def start_node(self) -> "AbstractOperation":
         """
@@ -117,7 +126,7 @@ class ExclusiveDescendants(BaseGraph):
         self.original_graph._add_node(node)
         self.new_nodes.add(node)
     
-    def add_edge(self, edge: Edge, order: int=0):
+    def add_edge(self, edge: Edge, order: int=0, idx: int=0):
         """
         Add an edge to the ExclusiveDescendants subgraph.
 
@@ -127,7 +136,7 @@ class ExclusiveDescendants(BaseGraph):
         """
         warnings.warn("Deprecated: Use partitions.add_edge instead.", DeprecationWarning)
         if edge.from_node in (self._graph.nodes | self.new_nodes) and edge.to_node in (self._graph.nodes | self.new_nodes):
-            self.original_graph._add_edge(edge, order)
+            self.original_graph._add_edge(edge, order, idx)
         else:
             raise ValueError(f"Both ends of the edge must be in the exclusive descendants graph. {edge.from_node} or {edge.to_node} is/are not in the original graph.")
         
@@ -330,9 +339,9 @@ class GraphPartitions:
         self.descendants = descendants
         self.exclusive_descendants = exclusive_descendants
         self.original_graph = predecessors.original_graph
-    def move_edge(self, current_edge: Edge, new_from_node: "AbstractOperation", new_from_node_key: NodeKey):
+    def move_edge_start_node(self, current_edge: Edge, new_from_node: "AbstractOperation", new_from_node_key: NodeKey):
         """
-        Move an edge within the graph partitions. Only allowed between the descendants and exclusive descendants partitions.
+        Move an edge within the graph partitions. Only allowed for edges from the exclusive descendants to the descendants partition. The new from_node must be in the exclusive descendants or predecessors partition.
 
         :param current_edge: The edge to move.
         :param new_from_node: The new source node for the edge.
@@ -344,12 +353,37 @@ class GraphPartitions:
             raise ValueError(f"Edge {current_edge} does not exist in the graph.")
         if current_edge.from_node not in self.exclusive_descendants:
             raise ValueError(f"In order to move an edge, the previous from_node must be in the exclusive Descendants graph. {current_edge.from_node} is not.")
-        if new_from_node not in self.exclusive_descendants:
-            raise ValueError(f"In order to move an edge, the new from_node must be in the exclusive Descendants graph. {new_from_node} is not.")
+        if new_from_node not in self.exclusive_descendants and new_from_node not in self.predecessors:
+            raise ValueError(f"In order to move an edge, the new from_node must be in the exclusive Descendants or predecessors graph. {new_from_node} is not.")
         self.original_graph._remove_edge(current_edge)
-        self.original_graph._add_edge(Edge(new_from_node, current_edge.to_node, new_from_node_key, current_edge.to_node_key), order=edge_data.get("order", 0))
+        self.original_graph._add_edge(Edge(new_from_node, current_edge.to_node, new_from_node_key, current_edge.to_node_key), order=edge_data.get("order", 0), idx=edge_data.get("idx", 0))
+        if new_from_node in self.predecessors:
+            self.predecessors.original_graph._update_new_from_predecessor_edge_values(new_from_node, current_edge.to_node, new_from_node_key)
 
-    def add_edge(self, edge: Edge, order: int=0):
+    def move_start_node_and_duplicate_edges(self, current_edge: Edge, new_from_nodes: list["AbstractOperation"], new_from_node_keys: list[NodeKey], orders: list[int] = None):
+        """
+        Move an edge within the graph partitions and duplicate it. Only allowed when to_node_key tupe is ManyToOne. Only allowed for edges from the exclusive descendants to the descendants partition. The new from_node must be in the exclusive descendants or predecessors partition.
+
+        :param current_edge: The edge to move.
+        :param new_from_nodes: The new source nodes for the edges.
+        :param new_from_node_keys: The new source keys for the edges.
+        """
+        edge_data = self.descendants.get_edge_data(current_edge)
+        if edge_data is None:
+            raise ValueError(f"Edge {current_edge} does not exist in the graph.")
+        if current_edge.from_node not in self.exclusive_descendants:
+            raise ValueError(f"In order to move an edge, the previous from_node must be in the exclusive Descendants graph. {current_edge.from_node} is not.")
+        if any(new_from_node not in self.exclusive_descendants for new_from_node in new_from_nodes) and any(new_from_node not in self.predecessors for new_from_node in new_from_nodes):
+            raise ValueError(f"In order to move an edge, all new from_nodes must be in the exclusive Descendants or predecessors graph. At least one of {new_from_nodes} is not.")
+        self.original_graph._remove_edge(current_edge)
+        if orders is None:
+            orders = [edge_data.get("order", 0)] * len(new_from_nodes)
+        for new_from_node, new_from_node_key, order in zip(new_from_nodes, new_from_node_keys, orders):
+            self.original_graph._add_edge(Edge(new_from_node, current_edge.to_node, new_from_node_key, current_edge.to_node_key), order=order, idx=edge_data.get("idx", 0))
+            if new_from_node in self.predecessors:
+                self.predecessors.original_graph._update_new_from_predecessor_edge_values(new_from_node, current_edge.to_node, new_from_node_key)
+
+    def add_edge(self, edge: Edge, order: int=0, idx: int=0):
         """
         Add an edge to the graph partitions. Only allowed between the predecessors and exclusive descendants partitions. For edges inside a partition, use the function in their respective classes.
 
@@ -361,7 +395,7 @@ class GraphPartitions:
             raise ValueError(f"The from_node must be in the predecessors or exclusive descendants graph. {edge.from_node} is not.")
         if edge.to_node not in self.exclusive_descendants:
             raise ValueError(f"The to_node must be in the exclusive descendants graph. {edge.to_node} is not.")
-        self.original_graph._add_edge(edge, order)
+        self.original_graph._add_edge(edge, order, idx)
         if edge.from_node in self.predecessors:
             self.predecessors.original_graph._update_new_from_predecessor_edge_values(edge.from_node, edge.to_node, edge.from_node_key)
 
