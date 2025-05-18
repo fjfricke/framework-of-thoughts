@@ -1,3 +1,5 @@
+import copy
+import uuid
 import dspy
 from llm_graph_optimizer.operations.llm_operations.base_llm_operation import (
     BaseLLMOperation,
@@ -33,7 +35,6 @@ class SharedPromptLLMOperation(dspy.Module, BaseLLMOperation, metaclass=Operatio
         group_id: str,
         llm,
         parser,
-        prompter,
         signature: dspy.Signature | str,
         input_types: ReasoningStateType,
         output_types: ReasoningStateType,
@@ -64,7 +65,7 @@ class SharedPromptLLMOperation(dspy.Module, BaseLLMOperation, metaclass=Operatio
         # make it an attribute *before* dspy.Module.__init__,
         # so DSPy registers it as a sub-module
         self.predict = shared_predict
-
+        self._group_id = group_id
         def _render_prompt(**kv):
             """
             1. Prefer predict.config["template"]  (MiPro & friends).
@@ -132,3 +133,42 @@ class SharedPromptLLMOperation(dspy.Module, BaseLLMOperation, metaclass=Operatio
         if not self._is_master:
             return iter(())        # empty iterator → no trainable params
         return dspy.Module.parameters(self, recurse)
+    
+    def __deepcopy__(self, memo):
+        """
+        • When the *first* node of a given `group_id` is copied
+          ➜ make a fresh Predict, register it under a new registry id.
+        • Later nodes of the *same* group reuse that fresh Predict.
+        """
+        cls = self.__class__
+        new = cls.__new__(cls)
+        memo[id(self)] = new
+
+        # shallow-copy everything except predict
+        for k, v in self.__dict__.items():
+            if k != "predict":
+                setattr(new, k, v)
+
+        # key used to share the new Predict among mirrors in this deepcopy
+        share_key = ("_copied_predict", self._group_id)
+
+        if share_key in memo:
+            # --- mirror copy ----------------------------------------
+            new.predict     = memo[share_key]          # reuse Predict
+            new._is_master  = False
+            new._group_id   = memo[("_copied_gid", self._group_id)]
+        else:
+            # --- first copy (local master) --------------------------
+            new.predict     = copy.deepcopy(self.predict, memo)
+            new._is_master  = True
+
+            # generate a unique registry id just for **this** deepcopy
+            new_gid = f"{self._group_id}__copy{uuid.uuid4().hex[:6]}"
+            new._group_id = new_gid
+            cls._registry[new_gid] = new.predict
+
+            # remember for subsequent mirrors
+            memo[share_key] = new.predict
+            memo[("_copied_gid", self._group_id)] = new_gid
+
+        return new

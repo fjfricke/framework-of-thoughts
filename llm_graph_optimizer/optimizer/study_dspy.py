@@ -1,205 +1,209 @@
-# dspy_study.py
+# study_dspy.py
 from __future__ import annotations
-
 import asyncio
 import nest_asyncio
-from pathlib import Path
-from typing import Callable, Iterable, List, Dict, Any, Optional, Tuple
+import time
+import json
+import gzip
+import pathlib
+from typing import Sequence, Tuple, List, Dict
 
 import dspy
-from dspy import Example
+from dspy import Predict
+from dspy.teleprompt.copro_optimizer import (
+    BasicGenerateInstruction,
+    GenerateInstructionGivenAttempts,
+)
 
-from llm_graph_optimizer.controller.controller import Controller
-from llm_graph_optimizer.graph_of_operations.types import ReasoningState
-from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
+from llm_graph_optimizer.measurement.dataset_measurement import (
+    ScoreParameter,
+)
+from llm_graph_optimizer.measurement.study_measurement import (
+    StudyMeasurement,
+)
+from llm_graph_optimizer.optimizer.dataset_evaluator import DatasetEvaluator
+from llm_graph_optimizer.operations.llm_operations.dspy.shared_prompt_llm_operation import (
+    SharedPromptLLMOperation as SP,
+)
 
-def safe_asyncio_run(coro):
-    """
-    • If no event-loop is running  →  use asyncio.run(coro)
-    • If we’re already inside a loop (Jupyter, DSPy threads)  →
-      apply nest_asyncio & run_until_complete.
-    """
+
+# ----------------------------------------------------------------------
+# helper – run async in sync code (Jupyter-safe)
+def _run(coro):
     try:
         return asyncio.run(coro)
     except RuntimeError as e:
-        if "event loop is running" in str(e):
+        if "event loop" in str(e):
             nest_asyncio.apply()
             loop = asyncio.get_event_loop()
             return loop.run_until_complete(coro)
         raise
 
 
+# ----------------------------------------------------------------------
 class DSPyPromptStudy:
     """
-    Tune all DSPy-visible prompts in a controller, then evaluate.
+    Search for better *instruction / prefix* prompts with DSPy
+    (CoPro-style) but evaluate each candidate with your DatasetEvaluator.
 
-    Parameters
-    ----------
-    controller_factory
-        Callable returning a **fresh Controller** each call.
-    train_loader_factory, eval_loader_factory
-        Factories that yield `(inputs_dict, ground_truth)` tuples.
-    input_keys
-        Keys inside `inputs_dict` that go into the controller (and thus into
-        DSPy Examples).  Everything else in inputs_dict is ignored.
-    calculate_score
-        Callable that converts `(reasoning_state, measurement, ground_truth)`
-        into a scalar to maximise.
-    save_path
-        Optional path to store/load the tuned prompts JSON.
-    compile_kwargs
-        Extra args for the DSPy optimiser (e.g. `auto="light"`).
+    One group_id  ➜  one prompt to optimise.
     """
 
+    # ------------------------------------------------------------------
     def __init__(
         self,
         *,
-        controller_factory: Callable[[], Controller],
-        train_loader_factory: Callable[[], Iterable[Tuple[dict, Any]]],
-        eval_loader_factory: Callable[[], Iterable[Tuple[dict, Any]]] | None = None,
-        optimizer_factory: Callable[[], dspy.Optimizer],
-        input_keys: List[str],
-        calculate_score: Callable[
-            [ReasoningState, ProcessMeasurement | None, Any], float
-        ],
-        save_path: Optional[Path] = None,
-        compile_kwargs: Dict[str, Any] | None = None,
-        eval_kwargs: Dict[str, Any] | None = None,
+        # evaluation side ------------------------------------------------
+        dataset_evaluator: DatasetEvaluator,
+        metrics: Sequence[ScoreParameter],
+        max_concurrent_eval: int = 4,
+        # prompt-generation side ----------------------------------------
+        group_id: str,
+        seed_instruction: str = '',
+        seed_prefix: str = '',
+        prompt_lm,                           # e.g. dspy.OpenAI(...)
+        breadth: int = 8,                    # prompts per round
+        depth: int = 4,                      # how many rounds
+        keep_top: int = 10,                  # history size
+        temperature: float = 1.4,
+        # measurement logging -------------------------------------------
+        study_measurement: StudyMeasurement | None = None,
+        save_history_dir: pathlib.Path | None = None,
     ):
-        self.controller_factory = controller_factory
-        self.train_loader_factory = train_loader_factory
-        self.eval_loader_factory = eval_loader_factory
-        self.optimizer_factory = optimizer_factory
-        self.input_keys = input_keys
-        self.calculate_score = calculate_score
-        self.compile_kwargs = compile_kwargs or {"auto": "light", "num_threads": 8}
-        self.eval_kwargs = eval_kwargs or {}
-        self.save_path = Path(save_path) if save_path else None
+        self.dataset_evaluator = dataset_evaluator
+        self.metrics = list(metrics)
+        self.max_concurrent_eval = max_concurrent_eval
 
-        self._compiled: dspy.Module | None = None
-        self._eval_scores: List[float] | None = None
+        self.group_id = group_id
+        self.seed_instruction = seed_instruction
+        self.seed_prefix = seed_prefix
 
-    # -----------------------------------------------------------------
-    def run(self) -> dspy.Module:
-        self._compile()
-        if self.eval_loader_factory:
-            self._evaluate()
-        return self._compiled
+        self.prompt_lm = prompt_lm
+        self.breadth = breadth
+        self.depth = depth
+        self.keep_top = keep_top
+        self.temperature = temperature
 
-    @property
-    def eval_scores(self):
-        return self._eval_scores
+        self.history: List[Tuple[str, str, float]] = []  # (instr, prefix, score)
+        self.best_prompt: Tuple[str, str, float] | None = None
 
-    # -----------------------------------------------------------------
-    # internal
-    # -----------------------------------------------------------------
-    def _compile(self):
-        dev_set = self._examples_from_loader(self.train_loader_factory())
+        self.study_measurement = study_measurement
+        self.save_history_dir = (
+            pathlib.Path(save_history_dir) if save_history_dir else None
+        )
+        if self.save_history_dir:
+            self.save_history_dir.mkdir(parents=True, exist_ok=True)
 
-        # ---------------- DSPy wrapper around the controller ----------
-        study = self  # capture for inner class
+    # ------------------------------------------------------------------
+    def _generate_candidates(self) -> List[Tuple[str, str]]:
+        """Use DSPy to propose a batch of new (instruction,prefix) pairs."""
+        if self.seed_instruction == '' and self.seed_prefix == '':
+            pred = SP._registry[self.group_id]
+            adapter = dspy.ChatAdapter()
+            format_field_description = adapter.format_field_description(pred.signature)
+            format_field_structure = adapter.format_field_structure(pred.signature)
+            format_task_description = adapter.format_task_description(pred.signature)
+            self.seed_instruction = format_field_description + format_field_structure + format_task_description
 
-        class _GraphModule(dspy.Module):
-            def __init__(self):
-                super().__init__()
-                self._factory = study.controller_factory  # deepcopy-safe
-                self._expose_inner_predictors()
-
-            # expose each inner dspy.Module as an attribute
-            def _expose_inner_predictors(self):
-                ctrl = self._factory()
-                for idx, node in enumerate(ctrl.graph_of_operations._graph.nodes):
-                    if isinstance(node, dspy.Module):
-                        setattr(self, f"sub_{idx}", node)
-
-            def forward(self, **inputs):
-                ctrl = self._build_ctrl_with_tuned_prompts()
-                rs, meas = safe_asyncio_run(ctrl.execute(inputs))
-                return dspy.Prediction(reasoning_state=rs, measurement=meas)
-
-            async def aforward(self, **inputs):
-                ctrl = self._build_ctrl_with_tuned_prompts()
-                rs, meas = await ctrl.execute(inputs)
-                return dspy.Prediction(reasoning_state=rs, measurement=meas)
-            
-            # ------------ critical: make sure controller sees MUTATED prompts
-            def _build_ctrl_with_tuned_prompts(self) -> Controller:
-                from llm_graph_optimizer.operations.llm_operations.dspy.shared_prompt_llm_operation import (
-                        SharedPromptLLMOperation as SP,
+        with dspy.settings.context(lm=self.prompt_lm):
+            if not self.history:  # first round
+                gen = Predict(
+                    BasicGenerateInstruction,
+                    n=self.breadth,
+                    temperature=self.temperature,
+                )(basic_instruction=self.seed_instruction)
+                instrs = gen.completions.proposed_instruction
+                prefs = gen.completions.proposed_prefix_for_output_field
+            else:  # subsequent rounds
+                # turn history into CoPro-style “attempted_instructions”
+                attempts = []
+                # best→worst
+                for i, (ins, pref, score) in enumerate(
+                    sorted(self.history, key=lambda x: x[2], reverse=True), 1
+                ):
+                    attempts.extend(
+                        [
+                            f"Instruction #{i}: {ins}",
+                            f"Prefix #{i}: {pref}",
+                            f"Resulting Score #{i}: {score}",
+                        ]
                     )
-                # copy tuned Predicts from exposed sub-modules into registry
-                for attr in dir(self):
-                    if attr.startswith("sub_"):
-                        node = getattr(self, attr)
-                        if hasattr(node, "predict"):
-                            for gid in list(SP._registry.keys()):
-                                if SP._registry[gid].signature == node.predict.signature:
-                                    SP._registry[gid] = node.predict
-                return self._factory()
 
-        # ---------------- metric uses the user-provided callable -------
-        def metric(gold, pred, trace=None):
-            return study.calculate_score(
-                pred.reasoning_state,
-                pred.measurement,
-                getattr(gold, "ground_truth", None),
+                gen = Predict(
+                    GenerateInstructionGivenAttempts,
+                    n=self.breadth,
+                    temperature=self.temperature,
+                )(attempted_instructions=attempts)
+                instrs = gen.completions.proposed_instruction
+                prefs = gen.completions.proposed_prefix_for_output_field
+
+        return list(zip(instrs, prefs))
+
+    # ------------------------------------------------------------------
+    def _evaluate_prompt(
+        self, instruction: str, prefix: str
+    ) -> Tuple[Dict[ScoreParameter, float], float]:
+        """Evaluate a single candidate on the whole dataset."""
+        # --- patch registry *only for this evaluation* ---------------
+        pred = SP._registry[self.group_id]
+        sig = pred.signature.with_instructions(instruction)
+        last_key = list(sig.fields.keys())[-1]
+        sig = sig.with_updated_fields(last_key, prefix=prefix)
+        pred.signature = sig
+
+        scores = _run(
+            self.dataset_evaluator.evaluate_dataset(
+                max_concurrent=self.max_concurrent_eval
+            )
+        )
+        # DatasetEvaluator returns {ScoreParameter: float}
+        # choose optimisation target – here the *first* metric
+        obj_score = scores[self.metrics[0]]
+
+        if self.study_measurement:
+            self.study_measurement.add_dataset_measurement(
+                self.dataset_evaluator.dataset_measurement
             )
 
-        optimiser: dspy.COPRO = self.optimizer_factory(metric=metric, **self.compile_kwargs)
+        return scores, obj_score
 
-        if self.save_path and self.save_path.exists():
-            print("▶ Loading tuned prompts from", self.save_path)
-            self._compiled = dspy.Module.load(self.save_path)
-        else:
-            print("▶ Compiling prompts with DSPy …")
-            self._compiled = optimiser.compile(_GraphModule(), trainset=dev_set, eval_kwargs=self.eval_kwargs)
-            if self.save_path:
-                self.save_path.parent.mkdir(parents=True, exist_ok=True)
-                self._compiled.save(self.save_path)
-                print("✔ Tuned prompts saved →", self.save_path)
+    # ------------------------------------------------------------------
+    def run(self):
+        for round_idx in range(self.depth):
+            print(f"\n◎ round {round_idx+1}/{self.depth}")
+            candidates = self._generate_candidates()
 
-        self._patch_shared_prompt_registry()
+            round_results = []
+            for instr, pref in candidates:
+                _, sc = self._evaluate_prompt(instr, pref)
+                round_results.append((instr, pref, sc))
+                print(f"  {sc:7.4f}  |  {instr[:70]}")
 
-    # copy the mutated Predict objects into SharedPromptLLMOperation’s registry
-    def _patch_shared_prompt_registry(self):
-        from llm_graph_optimizer.operations.llm_operations.dspy.shared_prompt_llm_operation import SharedPromptLLMOperation
+            # update history & best
+            self.history.extend(round_results)
+            self.history.sort(key=lambda x: x[2], reverse=True)
+            self.history = self.history[: self.keep_top]
+            self.best_prompt = self.history[0]
 
-        for _, pred in self._compiled.named_predictors():
-            # assume each predictor lives under exactly one group_id in registry
-            for gid, p in SharedPromptLLMOperation._registry.items():
-                if p is pred:  # already patched
-                    break
-            else:
-                # not in registry yet → add
-                SharedPromptLLMOperation._registry["autopool_" + str(id(pred))] = pred
+            if self.save_history_dir:
+                stamp = time.strftime("%Y%m%d_%H%M%S")
+                with gzip.open(
+                    self.save_history_dir / f"round_{round_idx+1}_{stamp}.json.gz",
+                    "wt",
+                    encoding="utf-8",
+                ) as f:
+                    json.dump(round_results, f, indent=2)
 
-    # -----------------------------------------------------------------
-    def _evaluate(self):
-        assert self._compiled, "run compile first"
-        async_prog = dspy.asyncify(self._compiled)
+            if self.study_measurement:
+                self.study_measurement.save()
 
-        async def _run():
-            scores = []
-            for inputs, gt in self.eval_loader_factory():
-                mini = {k: inputs[k] for k in self.input_keys}
-                pred = await async_prog(**mini)
-                scores.append(
-                    self.calculate_score(
-                        pred.reasoning_state, pred.measurement, gt
-                    )
-                )
-            return scores
+        # finally replace global registry entry so future controllers use it
+        best_instr, best_pref, _ = self.best_prompt
+        pred = SP._registry[self.group_id]
+        sig = pred.signature.with_instructions(best_instr)
+        last = list(sig.fields.keys())[-1]
+        sig = sig.with_updated_fields(last, prefix=best_pref)
+        pred.signature = sig
+        print("\n★ BEST PROMPT:", best_instr, best_pref)
 
-        self._eval_scores = asyncio.run(_run())
-        print(
-            f"mean score on eval: {sum(self._eval_scores) / len(self._eval_scores):.4f}"
-        )
-
-    # -----------------------------------------------------------------
-    def _examples_from_loader(self, loader):
-        exs = []
-        for inputs, gt in loader:
-            inp_subset = {k: inputs[k] for k in self.input_keys}
-            ex = Example(**inp_subset, ground_truth=gt).with_inputs(*self.input_keys)
-            exs.append(ex)
-        return exs
+        return self.best_prompt
