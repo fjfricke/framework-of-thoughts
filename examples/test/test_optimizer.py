@@ -11,7 +11,7 @@ from llm_graph_optimizer.measurement.dataset_measurement import DatasetEvaluator
 from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
 from llm_graph_optimizer.measurement.study_measurement import StudyMeasurement
 from llm_graph_optimizer.optimizer.dataset_evaluator import DatasetEvaluator
-from llm_graph_optimizer.optimizer.study import Study
+from llm_graph_optimizer.optimizer.study_optuna import Study
 
 logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 
