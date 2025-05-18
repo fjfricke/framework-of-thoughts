@@ -54,30 +54,32 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
             "request_price_per_token": self.request_price_per_token,
             "response_price_per_token": self.response_price_per_token
         }
+    
+    async def _raw_query(self, prompt: str) -> tuple[object, Measurement]:
+        messages = [{"role": "user", "content": prompt}]
+        return await self._raw_chat_query(messages)
 
     @backoff.on_exception(backoff.expo, OpenAIError, max_time=120, max_tries=6)
-    async def _raw_query(self, prompt: str) -> tuple[list[str, float], Measurement | None]:
+    async def _raw_chat_query(self, prompt: list[dict[str, str]]) -> tuple[list[str, float], Measurement | None]:
         """
         Query the OpenAI Legacy Completions API and return metadata.
 
         :param prompt: The input prompt for the model.
         """
 
-        messages = [{"role": "user", "content": prompt}]
-
         if self._openai_rate_limiter:
             try:
                 enc = tiktoken.encoding_for_model(self.model)
             except KeyError:
                 enc = tiktoken.get_encoding("cl100k_base")  # fallback since tiktoken is not up-to-date (It is the same tokenizer for newer models)
-            prompt_tokens = len(enc.encode(prompt))
+            prompt_tokens = len(enc.encode(str(prompt)))
             estimated_response_tokens = self._config.max_tokens or 1000
             await self._openai_rate_limiter.acquire(prompt_tokens + estimated_response_tokens)
         
         try:
             response = await self._client.chat.completions.create(
                 model=self.model,
-                messages=messages,
+                messages=prompt,
                 logprobs=True,
                 temperature=self._config.temperature,
                 max_tokens=self._config.max_tokens,

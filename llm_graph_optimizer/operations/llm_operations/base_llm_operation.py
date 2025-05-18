@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Union, Tuple
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import ReasoningStateType, ReasoningState
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
@@ -8,6 +8,7 @@ from llm_graph_optimizer.measurement.measurement import Measurement, Measurement
 
 from ..helpers.exceptions import OperationFailed
 from ..abstract_operation import AbstractOperation
+import inspect
 
 
 class BaseLLMOperation(AbstractOperation):
@@ -15,7 +16,7 @@ class BaseLLMOperation(AbstractOperation):
     LLM operation.
     """
 
-    def __init__(self, llm: AbstractLanguageModel, prompter: Callable[..., str], parser: Callable[[str], dict[str, any]], use_cache: bool = True, params: dict = None, input_types: ReasoningStateType = None, output_types: ReasoningStateType = None, name: str = None, cache_seed: CacheSeed = None):
+    def __init__(self, llm: AbstractLanguageModel, prompter: Callable[..., str], parser: Callable[[Union[str, Tuple[str, ReasoningState]]], ReasoningState], use_cache: bool = True, params: dict = None, input_types: ReasoningStateType = None, output_types: ReasoningStateType = None, name: str = None, cache_seed: CacheSeed = None):
         """
         Initialize the BaseLLMOperation.
 
@@ -45,7 +46,15 @@ class BaseLLMOperation(AbstractOperation):
             response, measurement = await self.llm.query(prompt=prompt, use_cache=self.use_cache, cache_seed=self.cache_seed)
             
             # Pass the response to the parser
-            return self.parser(response), measurement
+            parser_signature = inspect.signature(self.parser)
+            if len(parser_signature.parameters) == 1:
+                # Parser expects only the response
+                return self.parser(response), measurement
+            elif len(parser_signature.parameters) == 2:
+                # Parser expects response and input_reasoning_states
+                return self.parser(response, input_reasoning_states), measurement
+            else:
+                raise ValueError("Parser has an unexpected number of arguments.")
         except Exception as e:
             print(e)
             raise OperationFailed(e, measurement=measurement)

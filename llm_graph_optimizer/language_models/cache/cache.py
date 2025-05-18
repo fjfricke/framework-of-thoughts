@@ -24,11 +24,17 @@ class CacheKey:
     Represents a unique key for cache entries.
     """
     cache_key: LLMCacheKey
-    prompt: str
+    prompt: str | list[dict[str, str]]
     cache_seed: CacheSeed
 
     def __hash__(self):
-        return hash((self.cache_key, self.prompt, self.cache_seed))
+        # Convert the list of dictionaries into a tuple of frozensets (hashable representation)
+        if isinstance(self.prompt, list):
+            hashable_prompt = tuple(frozenset(d.items()) for d in self.prompt)
+        else:
+            hashable_prompt = self.prompt  # If it's a string, use it directly
+
+        return hash((self.cache_key, hashable_prompt, self.cache_seed))
 
 @dataclass
 class CacheEntry:

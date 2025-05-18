@@ -67,7 +67,20 @@ class AbstractLanguageModel(ABC):
         """
         pass
 
-    async def query(self, prompt: str, use_cache: bool = True, cache_seed: CacheSeed = None) -> tuple[LLMOutput, Measurement]:
+    @abstractmethod
+    async def _raw_chat_query(self, prompt: list[dict[str, str]]) -> tuple[LLMOutput, Measurement]:
+        """
+        Query the language model with a prompt. Needs to be implemented by the LLM.
+
+        Args:
+            prompt (list[dict[str, str]]): The input chat prompts with role and content for the language model.
+
+        Returns:
+            tuple[LLMOutput, Measurement]: The output from the language model and associated measurement.
+        """
+        pass
+
+    async def query(self, prompt: str | list[dict[str, str]], use_cache: bool = True, cache_seed: CacheSeed = None) -> tuple[LLMOutput, Measurement]:
         """
         Query the language model with caching.
 
@@ -111,7 +124,10 @@ class AbstractLanguageModel(ABC):
                 return response, measurements
 
         # If not in cache, query the language model
-        response, measurement = await self._raw_query(prompt)
+        if isinstance(prompt, str):
+            response, measurement = await self._raw_query(prompt)
+        else:
+            response, measurement = await self._raw_chat_query(prompt)
 
         # Store the result in the cache
         if use_cache and self.cache:
