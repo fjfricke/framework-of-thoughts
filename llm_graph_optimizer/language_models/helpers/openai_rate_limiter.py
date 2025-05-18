@@ -17,7 +17,7 @@ class OpenAIRateLimiter:
     and provides mechanisms to synchronize local state with server-provided rate-limit headers.
     """
 
-    def __init__(self, rpm: int, tpm: int):
+    def __init__(self, rpm: int, tpm: int, max_estimated_response_tokens: int = 1000):
         """
         Initialize the rate-limiter with specified RPM and TPM limits.
 
@@ -32,7 +32,7 @@ class OpenAIRateLimiter:
         self._lock    = asyncio.Lock()
         self._queue: deque[_Ticket] = deque()
         self._task = None
-
+        self._max_estimated_response_tokens = max_estimated_response_tokens
     # ---------- public API -------------------------------------------------
 
     async def acquire(self, tokens_estimate: int = 1) -> None:
