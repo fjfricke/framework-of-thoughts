@@ -1,7 +1,8 @@
 from typing import TYPE_CHECKING, get_origin
 import networkx as nx
+from typeguard import TypeCheckError, check_type
 from .base_graph import BaseGraph
-from .types import Edge, NodeKey, ManyToOne, StateSetFailed
+from .types import Edge, NodeKey, ManyToOne, OneToMany, StateSetFailed
 from llm_graph_optimizer.operations.helpers.node_state import NodeState
 from .graph_partitions import Descendants, ExclusiveDescendants, GraphPartitions, Predecessors
 if TYPE_CHECKING:
@@ -10,12 +11,12 @@ if TYPE_CHECKING:
 
 class GraphOfOperations(BaseGraph):
     """
-    Graph of operations.
+    Graph of operations (execution graph).
     """
 
     def __init__(self, graph: nx.MultiDiGraph = None):
         """
-        Initialize the GraphOfOperations.
+        Initialize the GraphOfOperations (execution graph).
 
         :param graph: An optional MultiDiGraph object to initialize the graph. Usually created empty.
         """
@@ -67,14 +68,15 @@ class GraphOfOperations(BaseGraph):
         """
         super()._add_node(node)
 
-    def add_edge(self, edge: Edge, order: int=0):
+    def add_edge(self, edge: Edge, order: int=0, idx: int=0):
         """
         Add an edge to the graph.
 
         :param edge: The edge to add.
         :param order: The order of the edge. This is needed when using ManyToOne types to ensure that returned lists are in the order given.
+        :param idx: The index of the edge. This is needed when using OneToMany types to ensure that returned lists are in the order given.
         """
-        super()._add_edge(edge, order)
+        super()._add_edge(edge, order, idx)
 
     def add_dependency_edge(self, from_node: "AbstractOperation", to_node: "AbstractOperation"):
         """
@@ -134,12 +136,17 @@ class GraphOfOperations(BaseGraph):
                     to_node_key = edge["to_node_key"]
                     if to_node_key is not None:
                         value = edge.get("value") if not predecessor.node_state == NodeState.FAILED else StateSetFailed
-                        # Check if the type is OneToManyList or a parameterized version of it
+                        try:
+                            check_type(value, OneToMany)
+                            value = value[edge["idx"]]
+                        except TypeCheckError:
+                            pass
+                        # Check if the type is ManyToOne or a parameterized version of it
                         if get_origin(node.input_types[to_node_key]) == ManyToOne:
                             # Aggregate values into a list
                             input_reasoning_states[to_node_key].append(value)
                         else:
-                            # Assign the value directly for non-OneToManyList types
+                            # Assign the value directly for non-ManyToOne types
                             input_reasoning_states[to_node_key] = value
         return input_reasoning_states
     
