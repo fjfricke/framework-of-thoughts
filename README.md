@@ -1,15 +1,15 @@
-# llm_graph_optimizer
+# Framework-of-Thoughts
 
 ## Description
-`llm_graph_optimizer` is a Python library designed to model and optimize graph-based multi-step reasoning problems using large language models (LLMs). It provides tools for creating, visualizing and executing prompting strategies, and optimizing hyperparameters using optuna.
+`framework-of-thoughts` is a Python library designed to model and optimize graph-based multi-step reasoning problems using large language models (LLMs). It provides tools for creating, visualizing and executing prompting strategies, and optimizing hyperparameters using optuna.
 
 ## Installation
 
-To install the project, you can use `pip install git+https://github.com/fjfricke/llm-graph-optimizer.git`. Ensure you have Python 3.12 or higher installed.
+To install the project, you can use `pip install git+https://github.com/fjfricke/llm-graph-optimizer.git`. Ensure you have Python 3.12 installed.
 
 ## Development
 
-To install the project for development purposes or to run the examples, ensure you have Python 3.12 or higher installed. Clone the project. Then, use `poetry` to set up the environment:
+To install the project for development purposes or to run the examples, ensure you have Python 3.12 installed. Clone the project. Then, use `poetry` to set up the environment:
 
 ```bash
 poetry install
@@ -62,7 +62,7 @@ Explore the `examples` directory for modelling Tree-of-Thought (ToT) on the Sort
 
 A mock example called "test" is also provided to show how to use the library using Self-Consistency prompting on simple math problems.
 
-A tutorial is provided under `examples/test/tutorial.ipynb` to show how to use the library for modelling and optimizing execution graphs. I recommend checking that out to get started. You can find a snapshot html version [here](https://fjfricke.github.io/llm-graph-optimizer-tutorial) (might not be up-to-date).
+A tutorial is provided under `examples/test/tutorial.ipynb` to show how to use the library for modelling and optimizing execution graphs. I recommend checking that out to get started. You can find a snapshot html version [here](https://fjfricke.github.io/llm-graph-optimizer-tutorial) (might not be up-to-date) or at `examples/test/tutorial_snapshot.html`.
 
 ## Features
 

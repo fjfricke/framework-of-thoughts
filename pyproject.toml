@@ -2,7 +2,7 @@
 name = "llm_graph_optimizer"
 version = "0.2.0"
 description = ""
-authors = ["Felix Fricke <f.fricke@tum.de>"]
+authors = ["Anonymous"]
 readme = "README.md"
 packages = [{ include = "llm_graph_optimizer" }]
 

@@ -173,8 +173,6 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-
-**/dataset_old/*
 examples/hotpotqa/dataset/HotpotQA/*
 
 graphs/*
