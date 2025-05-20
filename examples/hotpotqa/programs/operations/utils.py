@@ -9,16 +9,16 @@ from typing import Counter
 
 def find_dependencies(subquestion: str) -> list[int]:
     """
-    Finds the dependencies of a subquestion.
+    Finds the dependencies of a subquestion formatted as <digit>.
     """
-    return [int(match.group(1)) for part in subquestion.split() for match in re.finditer(r"#(\d+)", part)]
+    return [int(match.group(1)) for part in subquestion.split() for match in re.finditer(r"<(\d+)>", part)]
 
 def replace_dependencies(subquestion: str, dependencies: dict[int, str]) -> str:
     """
     Replaces the dependencies in a subquestion with the given dependencies by their id.
     """
     for id, dependency in dependencies.items():
-        subquestion = subquestion.replace(f"#{id}", dependency)
+        subquestion = subquestion.replace(f"<{id}>", dependency)
     return subquestion
         
 def calculate_average_logprob(logprobs, start, end):
@@ -68,7 +68,12 @@ def parse_tree_and_extract_logprobs(tokens, logprobs):
                 logging.error("Failed to find JSON boundaries in the response content.")
                 return None
             # Parse the JSON
-            return json.loads(response_content)
+            response_content = response_content.replace('[[', '[').replace(']]', ']')
+            response_content = json.loads(response_content)
+            if not validate_json_format(response_content):
+                logging.error("Response content does not match the expected format.")
+                return None
+            return response_content
         except json.JSONDecodeError:
             logging.error("Failed to parse JSON from LLM response content.")
             return None
@@ -233,3 +238,22 @@ def calculate_exact_match_score(prediction, ground_truth) -> bool:
     if prediction is None:
         return False
     return normalize_answer(prediction) == normalize_answer(ground_truth)
+
+def validate_json_format(response_content: dict) -> bool:
+    """
+    Validates that the JSON structure matches the expected format.
+
+    Args:
+        response_content (dict): Parsed JSON object.
+
+    Returns:
+        bool: True if the format is valid, False otherwise.
+    """
+    for key, value in response_content.items():
+        if not isinstance(key, str):
+            logging.error(f"Invalid key format: {key}. Keys must be strings.")
+            return False
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            logging.error(f"Invalid value format for key '{key}': {value}. Values must be lists of strings.")
+            return False
+    return True

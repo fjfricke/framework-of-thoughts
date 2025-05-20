@@ -3,6 +3,7 @@
 
 # Initialize the LLM generate operation and node
 import ast
+
 import logging
 from typing import TypedDict
 
@@ -111,17 +112,25 @@ Only output the final 8 lists in the following format without any additional tex
     "List 1": [3, 4, 3, 5, 7, 8, 1, ...],
     "List 2": [2, 9, 2, 4, 7, 1, 5, ...],
     "List 3": [6, 9, 8, 1, 9, 2, 4, ...],
-    "List 4": [9, 0, 7, 6, 5, 6, 6, ...]
+    "List 4": [9, 0, 7, 6, 5, 6, 6, ...],
+    "List 5": [7, 9, 4, 1, 1, 8, 1, ...],
+    "List 6": [1, 9, 0, 4, 3, 3, 5, ...],
+    "List 7": [2, 4, 3, 5, 8, 2, 2, ...],
+    "List 8": [4, 2, 1, 2, 7, 6, 8, ...]
 }} </Instruction>
 
 <Example>
-Input: [3, 1, 9, 3, 7, 5, 5, 4, 8, 1, 5, 3, 3, 2, 3, 0, 9, 7, 2, 2, 4, 4, 8, 5, 0, 8, 7, 3, 3, 8, 7, 0, 9, 5, 1, 6, 7, 6, 8, 9, 0, 3, 0, 6, 3, 4, 8, 0, 6, 9, 8, 4, 1, 2, 9, 0, 4, 8, 8, 9, 9, 8, 5, 9]
+Input: [6, 0, 2, 3, 8, 3, 0, 2, 4, 5, 4, 1, 3, 6, 9, 8, 3, 1, 2, 6, 5, 3, 9, 8, 9, 1, 6, 1, 0, 2, 8, 9, 5, 3, 1, 2, 7, 9, 4, 8, 8, 9, 3, 2, 8, 4, 7, 4, 3, 8, 7, 3, 6, 4, 0, 0, 6, 8, 1, 5, 8, 7, 5, 1, 4, 0, 8, 6, 1, 3, 6, 1, 7, 6, 8, 7, 3, 7, 8, 2, 0, 8, 2, 6, 0, 0, 9, 9, 8, 6, 9, 4, 8, 5, 5, 0, 0, 9, 3, 9, 4, 0, 5, 6, 2, 4, 6, 7, 7, 7, 8, 0, 4, 9, 1, 4, 8, 5, 1, 4, 4, 7, 4, 9, 3, 9, 6, 7]
 Output: 
 {{
-    "List 1": [3, 1, 9, 3, 7, 5, 5, 4, 8, 1, 5, 3, 3, 2, 3, 0],
-    "List 2": [9, 7, 2, 2, 4, 4, 8, 5, 0, 8, 7, 3, 3, 8, 7, 0],
-    "List 3": [9, 5, 1, 6, 7, 6, 8, 9, 0, 3, 0, 6, 3, 4, 8, 0],
-    "List 4": [6, 9, 8, 4, 1, 2, 9, 0, 4, 8, 8, 9, 9, 8, 5, 9]
+    "List 1": [6, 0, 2, 3, 8, 3, 0, 2, 4, 5, 4, 1, 3, 6, 9, 8],
+    "List 2": [3, 1, 2, 6, 5, 3, 9, 8, 9, 1, 6, 1, 0, 2, 8, 9],
+    "List 3": [5, 3, 1, 2, 7, 9, 4, 8, 8, 9, 3, 2, 8, 4, 7, 4],
+    "List 4": [3, 8, 7, 3, 6, 4, 0, 0, 6, 8, 1, 5, 8, 7, 5, 1],
+    "List 5": [4, 0, 8, 6, 1, 3, 6, 1, 7, 6, 8, 7, 3, 7, 8, 2],
+    "List 6": [0, 8, 2, 6, 0, 0, 9, 9, 8, 6, 9, 4, 8, 5, 5, 0],
+    "List 7": [0, 9, 3, 9, 4, 0, 5, 6, 2, 4, 6, 7, 7, 7, 8, 0],
+    "List 8": [4, 9, 1, 4, 8, 5, 1, 4, 4, 7, 4, 9, 3, 9, 6, 7]
 }}
 </Example>
 
@@ -132,6 +141,10 @@ class GotSplitOutput(TypedDict):
     output2: list[int]
     output3: list[int]
     output4: list[int]
+    output5: list[int]
+    output6: list[int]
+    output7: list[int]
+    output8: list[int]
 
 def got_split_parser(text: str) -> GotSplitOutput:
     try:
@@ -140,10 +153,20 @@ def got_split_parser(text: str) -> GotSplitOutput:
         parsed_data = ast.literal_eval(text[start_index:end_index])
         lists = [values for key, values in parsed_data.items()]
         try:
-            check_type(lists, list[list[int]])
-            if len(lists) != 4:
+            check_type(lists, list)
+            if len(lists) != 8:
                 raise OperationFailed(f"Invalid number of lists: {len(lists)}")
-            return {"output1": lists[0], "output2": lists[1], "output3": lists[2], "output4": lists[3]}
+            for i, item in enumerate(lists):
+                try:
+                    check_type(item, list)
+                    parsed_with_only_int = []
+                    for digit in item:
+                        if isinstance(digit, int):
+                            parsed_with_only_int.append(digit)
+                    lists[i] = parsed_with_only_int
+                except TypeCheckError:
+                    lists[i] = []
+            return {"output1": lists[0], "output2": lists[1], "output3": lists[2], "output4": lists[3], "output5": lists[4], "output6": lists[5], "output7": lists[6], "output8": lists[7]}
         except TypeCheckError:
             raise OperationFailed(f"Invalid output type: {type(lists)}")
     except (ValueError, SyntaxError) as e:
@@ -203,41 +226,40 @@ def generate_parser(text: str) -> ParserOutput:
         logging.warning("Could not find '[' or ']' in the text. Returning empty list.")
         return {"output": []}
     try:
-        answer = ast.literal_eval(answer)
-    except (ValueError, SyntaxError) as e:
-        logging.error(f"Failed to parse answer: {answer[0]}. Error: {e}")
-        answer = []
-    return {"output": answer}
+        parsed = ast.literal_eval(answer)
+        parsed_with_only_int = []
+        check_type(parsed, list)
+        for digit in parsed:
+            if isinstance(digit, int):
+                parsed_with_only_int.append(digit)
+        return {"output": parsed_with_only_int}
+    except (ValueError, SyntaxError, TypeCheckError) as e:
+        logging.error(f"Failed to parse answer from text: {answer}. Error: {e}")
+        return {"output": []}
 
 def scoring_function(output: list[int], expected_output: list[int]) -> int:
     """
-    Function to calculate the number of errors in the sorting process.
-
-    :param output: The current state of the sorted list.
-    :param expected_output: The expected sorted list.
-    :return: Number of errors.
-    :rtype: float
+    Composite error score:
+        score = (# elements with wrong value) + (# adjacent inversions)
     """
-    try:
-        # Calculate errors
-        num_errors = 0
 
-        # Count errors in the frequency of each number (0-9)
+    try:
+        # Frequency mismatch (digit counts)
+        num_errors = 0
         for i in range(10):
             num_errors += abs(
-                sum([1 for num in output if num == i])
-                - sum([1 for num in expected_output if num == i])
+                sum(1 for num in output if num == i) -
+                sum(1 for num in expected_output if num == i)
             )
 
-        # Count ordering errors (numbers out of order)
-        num_errors += sum(
-            [1 for num1, num2 in zip(output, output[1:]) if num1 > num2]
-        )
+        # Adjacent inversions
+        num_errors += sum(1 for a, b in zip(output, output[1:]) if a > b)
 
         return num_errors
-    except Exception as e:
-        logging.error(f"Error in scoring function: {e}")
-        return 300  # Return a high error score in case of failure
+
+    except Exception as exc:
+        logging.error("Error in scoring_function: %s", exc, exc_info=True)
+        return 300
     
 def filter_function(outputs: list[list[int]], scores: list[int]) -> ReasoningState:
     # Find the index of the smallest score
@@ -248,3 +270,9 @@ def filter_function(outputs: list[list[int]], scores: list[int]) -> ReasoningSta
     best_score = scores[min_score_index]
 
     return {"output": best_output, "score": best_score}
+
+def filter_function_with_edge_move(outputs: list[list[int]], scores: list[int]) -> list[int]:
+    # Find the index of the smallest score
+    min_score_index = scores.index(min(scores))
+
+    return [min_score_index]

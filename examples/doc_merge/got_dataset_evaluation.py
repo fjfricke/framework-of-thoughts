@@ -17,7 +17,7 @@ from llm_graph_optimizer.measurement.process_measurement import ProcessMeasureme
 from llm_graph_optimizer.optimizer.dataset_evaluator import DatasetEvaluator
 
 dataset_path = Path(__file__).parent / "dataset" / "documents.csv"
-dataloader_factory = lambda: DocMergeDataloader(dataset_path=dataset_path, execution_mode=Split.VALIDATION, split=0.8, seed=42)
+dataloader_factory = lambda: DocMergeDataloader(dataset_path=dataset_path, execution_mode=Split.VALIDATION, split=0.5, seed=42)
 
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
 
