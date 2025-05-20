@@ -176,8 +176,10 @@ cython_debug/
 examples/hotpotqa/dataset/HotpotQA/*
 
 graphs/*
-**/output/*
-!**/output/experiment*/
 .DS_Store
 
 **/old_studies/*
+
+**/dataset_cache.pkl
+**/test_dataset_cache.pkl
+**/cache.pkl
