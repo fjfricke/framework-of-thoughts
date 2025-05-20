@@ -78,17 +78,20 @@ class OpenAIRateLimiter:
 
         :param headers: A dictionary containing rate-limit headers from the API response.
         """
-        lim_r = int(headers.get("x-ratelimit-limit-requests", 0))
-        rem_r = int(headers.get("x-ratelimit-remaining-requests", -1))
-        lim_t = int(headers.get("x-ratelimit-limit-tokens", 0))
-        rem_t = int(headers.get("x-ratelimit-remaining-tokens", -1))
+        try:
+            lim_r = int(headers.get("x-ratelimit-limit-requests", None))
+            rem_r = int(headers.get("x-ratelimit-remaining-requests", None))
+            lim_t = int(headers.get("x-ratelimit-limit-tokens", None))
+            rem_t = int(headers.get("x-ratelimit-remaining-tokens", None))
+        except Exception:
+            return
 
         async with self._lock:
             # Update bucket size and current fill-level if limits have changed
-            if lim_r:
+            if lim_r and rem_r:
                 self._req_bucket = rem_r if rem_r >= 0 else min(self._req_bucket, lim_r)
                 self.rpm = float(lim_r)
-            if lim_t:
+            if lim_t and rem_t:
                 self._tok_bucket = rem_t if rem_t >= 0 else min(self._tok_bucket, lim_t)
                 self.tpm = float(lim_t)
 

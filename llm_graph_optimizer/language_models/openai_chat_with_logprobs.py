@@ -33,7 +33,6 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
         super().__init__(config, LLMResponseType.TOKENS_AND_LOGPROBS, execution_cost, cache)
         load_dotenv()
         api_key = api_key or getenv("OPENAI_API_KEY")
-        print(api_key)
         if not api_key:
             raise ValueError("API key is not set. Please provide it or set the 'OPENAI_API_KEY' environment variable.")
         self.model = model
@@ -41,7 +40,7 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
         self.response_price_per_token = response_price_per_token
 
         transport = TimingAsyncHTTPTransport()
-        http_client = AsyncClient(transport=transport)
+        http_client = AsyncClient(transport=transport, timeout=20)
         self._client = AsyncOpenAI(api_key=api_key, http_client=http_client)
         self._openai_rate_limiter = openai_rate_limiter
     @property
@@ -59,7 +58,7 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
         messages = [{"role": "user", "content": prompt}]
         return await self._raw_chat_query(messages)
 
-    @backoff.on_exception(backoff.expo, OpenAIError, max_time=120, max_tries=6)
+    @backoff.on_exception(backoff.expo, OpenAIError, max_time=120, max_tries=6, jitter=lambda x: max(x, 10))
     async def _raw_chat_query(self, prompt: list[dict[str, str]]) -> tuple[list[str, float], Measurement | None]:
         """
         Query the OpenAI Legacy Completions API and return metadata.
@@ -83,7 +82,7 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
                 logprobs=True,
                 temperature=self._config.temperature,
                 max_tokens=self._config.max_tokens,
-                stop=self._config.stop
+                stop=self._config.stop,
             )
         finally:
             if self._openai_rate_limiter:

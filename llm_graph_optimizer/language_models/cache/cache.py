@@ -1,8 +1,10 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 import logging
 from pathlib import Path
 import pickle
 from enum import Enum
+
+import numpy as np
 from llm_graph_optimizer.language_models.cache.types import CacheSeed, LLMCacheKey
 from llm_graph_optimizer.measurement.measurement import Measurement
 from llm_graph_optimizer.types import LLMOutput
@@ -41,7 +43,7 @@ class CacheEntry:
     """
     Represents an entry in the cache, containing the LLM result and measurement.
     """
-    result: tuple[LLMOutput, Measurement]
+    result: LLMOutput
     measurement: Measurement
 
 @dataclass
@@ -128,14 +130,24 @@ class CacheContainer:
         try:
             with open(file_path, "rb") as f:
                 cache = CacheContainer(save_file_path=Path(file_path))
-                if load_as_virtual_persistent_cache:
-                    virtual_persistent_cache = pickle.load(f)
-                    entries = virtual_persistent_cache.entries
-                    cache.virtual_persistent_cache.entries = entries
-                else:
-                    persistent_cache = pickle.load(f)
-                    entries = persistent_cache.entries
-                    cache.persistent_cache.entries = entries
+                
+                loaded_cache = pickle.load(f)
+                loaded_cache_entries = loaded_cache.entries
+                for key, value in loaded_cache_entries.items():
+                    if value is None:
+                        continue
+                    if not isinstance(value.measurement, Measurement):
+                        continue
+                    for field in fields(value.measurement):
+                        field_value = getattr(value.measurement, field.name)
+                        if isinstance(field_value, (int, float)):
+                            setattr(value.measurement, field.name, np.float64(field_value))
+                    if not all([isinstance(getattr(value.measurement, field.name), np.float64) for field in fields(value.measurement)]):
+                        continue
+                    if load_as_virtual_persistent_cache:
+                        cache.virtual_persistent_cache.entries = loaded_cache_entries
+                    else:
+                        cache.persistent_cache.entries = loaded_cache_entries
 
             return cache
         except FileNotFoundError:

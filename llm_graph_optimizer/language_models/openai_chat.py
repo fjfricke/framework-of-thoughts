@@ -41,7 +41,7 @@ class OpenAIChat(AbstractLanguageModel):
         self.response_price_per_token = response_price_per_token
 
         transport = TimingAsyncHTTPTransport()
-        http_client = AsyncClient(transport=transport)
+        http_client = AsyncClient(transport=transport, timeout=20)
         self._client = AsyncOpenAI(api_key=api_key, http_client=http_client)
         self._openai_rate_limiter = openai_rate_limiter
 

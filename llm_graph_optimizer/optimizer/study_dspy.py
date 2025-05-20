@@ -93,6 +93,7 @@ class DSPyPromptStudy:
         )
         if self.save_history_dir:
             self.save_history_dir.mkdir(parents=True, exist_ok=True)
+        self.dataset_evaluator.controller_factory()  # register SharedPromptLLMOperation
 
     # ------------------------------------------------------------------
     def _generate_candidates(self) -> List[Tuple[str, str]]:

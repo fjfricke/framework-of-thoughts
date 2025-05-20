@@ -32,7 +32,6 @@ class ProcessMeasurement:
     def total_parallel_cost(self) -> MeasurementsWithCache:
         total_sequential_measurements = self.total_sequential_cost()
         total_parallel_measurements = MeasurementsWithCache()
-        total_parallel_measurements.with_persistent_cache = None
 
         # Iterate over the fields of MeasurementsWithCache
         for measurement_field in fields(total_sequential_measurements):

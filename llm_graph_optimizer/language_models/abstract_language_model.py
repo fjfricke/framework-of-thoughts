@@ -80,7 +80,7 @@ class AbstractLanguageModel(ABC):
         """
         pass
 
-    async def query(self, prompt: str | list[dict[str, str]], use_cache: bool = True, cache_seed: CacheSeed = None) -> tuple[LLMOutput, Measurement]:
+    async def query(self, prompt: str | list[dict[str, str]], use_cache: bool = True, cache_seed: CacheSeed = None) -> tuple[LLMOutput, MeasurementsWithCache]:
         """
         Query the language model with caching.
 
