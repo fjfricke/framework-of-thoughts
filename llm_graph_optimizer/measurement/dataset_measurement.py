@@ -126,9 +126,12 @@ class DatasetMeasurement:
     @property
     def dataset_measurements(self):
         max_index = max(self._measurements_for_index.keys(), default=-1)
-        return [
+        dataset_measurement_list = [
             self._measurements_for_index.get(i, None) for i in range(max_index + 1)
         ]
+        if any(measurement is None for measurement in dataset_measurement_list):
+            raise ValueError("Some measurements are None")
+        return dataset_measurement_list
     
     def add_global_evaluation_measurement(self, global_evaluation_measurement: GlobalEvaluationMeasurements):
         self.global_evaluation_measurements = global_evaluation_measurement

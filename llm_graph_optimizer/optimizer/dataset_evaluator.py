@@ -52,8 +52,7 @@ class DatasetEvaluator:
         self.dataloader_factory = dataloader_factory
         self.dataloader = None
         self.parameters = parameters
-        self.dataset_measurement = DatasetMeasurement()
-        self.dataset_measurement.add_dataset_evaluator_parameters(parameters)
+        self.dataset_measurement = None
         self.save_cache_on_completion_to = save_cache_on_completion_to
 
     def set_controller_factory(self, controller_factory: ControllerFactory):
@@ -80,6 +79,9 @@ class DatasetEvaluator:
         Raises:
             ValueError: If the controller factory is not set.
         """
+        self.dataset_measurement = DatasetMeasurement()
+        self.dataset_measurement.add_dataset_evaluator_parameters(self.parameters)
+
         if self.controller_factory is None:
             raise ValueError("Controller factory is not set")
         self.dataloader = self.dataloader_factory()

@@ -19,6 +19,8 @@ class Edge:
     to_node: "AbstractOperation"
     from_node_key: NodeKey
     to_node_key: NodeKey
+    order: int = 0
+    idx: int = 0
 
     @classmethod
     def from_edge_view(cls, edge_view: OutMultiEdgeView):
@@ -33,7 +35,9 @@ class Edge:
                 from_node=from_node,
                 to_node=to_node,
                 from_node_key=edge_data.get("from_node_key"),
-                to_node_key=edge_data.get("to_node_key")
+                to_node_key=edge_data.get("to_node_key"),
+                order=edge_data.get("order", 0),
+                idx=edge_data.get("idx", 0)
             )
             for from_node, to_node, edge_data in edge_view
         ]
@@ -47,6 +51,13 @@ class Edge:
         """
         return self.from_node == other.from_node and self.to_node == other.to_node and self.from_node_key == other.from_node_key and self.to_node_key == other.to_node_key
 
+    def __hash__(self):
+        """
+        Hash the Edge instance based on its properties.
+
+        :return: A hash value for the Edge instance.
+        """
+        return hash((self.from_node, self.to_node, self.from_node_key, self.to_node_key, self.order, self.idx))
 
 class StateNotSetType:
     """
@@ -76,10 +87,17 @@ Dynamic = DynamicType()
 T = TypeVar("T")
 class ManyToOne(list, Generic[T]):
     """
-    Represents a one-to-many relationship, where a single key maps to multiple values. The solution key then contains a list of values from all in-edges. Use the order parameter when connecting the nodes to ensure a predefined order.
+    Represents a many-to-one relationship, where a single key maps to multiple values. The solution key then contains a list of values from all in-edges. Use the order parameter when connecting the nodes to ensure a predefined order.
     """
     def __repr__(self):
         return "<ManyToOne>"
+    
+class OneToMany(list, Generic[T]):
+    """
+    Represents a one-to-many relationship, where each element in the list maps to a different edge. The solution key then contains a list of values from all in-edges. Use the order parameter when connecting the nodes to ensure a predefined order.
+    """
+    def __repr__(self):
+        return "<OneToMany>"
 
 ReasoningState = dict[NodeKey, any]
 """

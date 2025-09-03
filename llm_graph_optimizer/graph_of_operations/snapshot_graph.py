@@ -190,17 +190,21 @@ class SnapshotGraph():
             edge_data = edge[3]
             edge_data.clear()
 
+            # edge_data['color'] = 'blue'
+
             # Set the `title` attribute based on the original edge data
             if show_keys and not show_values:
                 if "from_node_key" in original_edge_data and "to_node_key" in original_edge_data:
                     edge_data['title'] = f"{original_edge_data['from_node_key']} -> {original_edge_data['to_node_key']}"
                 else:
                     edge_data['title'] = "dependency edge"
+                    edge_data['color'] = 'grey'  # Set dependency edge color to grey
             elif show_values:
                 if "from_node_key" in original_edge_data and "to_node_key" in original_edge_data:
                     edge_data['title'] = f"{original_edge_data['from_node_key']} -> {original_edge_data['to_node_key']}: {original_edge_data.get('value', 'N/A')}"
                 else:
                     edge_data['title'] = "dependency edge"
+                    edge_data['color'] = 'grey'  # Set dependency edge color to grey
             if show_keys_on_arrows:
                 keys_to_add = f"{original_edge_data['from_node_key']} -> {original_edge_data['to_node_key']}"
                 if "label" not in edge_data:
@@ -224,6 +228,9 @@ class SnapshotGraph():
 
         for node in graph.nodes:
             graph.nodes[node]['state'] = str(graph.nodes[node]['state'])
+
+        # Convert UUIDs to strings for visualization
+        graph = nx.relabel_nodes(graph, {node: str(node) for node in graph.nodes})
 
         # Handle multiedges or single edges
         if show_multiedges:

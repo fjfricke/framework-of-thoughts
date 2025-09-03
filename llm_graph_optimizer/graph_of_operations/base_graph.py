@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from numbers import Number
-from typing import TYPE_CHECKING, Callable, get_origin
+from typing import TYPE_CHECKING, Callable, Iterator, get_origin
 import networkx as nx
 
 from llm_graph_optimizer.graph_of_operations.snapshot_graph import SnapshotGraph
@@ -56,7 +56,7 @@ class BaseGraph(ABC):
     def _add_node(self, node: "AbstractOperation"):
         self._graph.add_node(node)
 
-    def _add_edge(self, edge: Edge, order: int):
+    def _add_edge(self, edge: Edge, order: int, idx: int):
         if edge.from_node not in self._graph:
             raise ValueError(f"Node {edge.from_node} not found in graph")
         if edge.to_node not in self._graph:
@@ -81,7 +81,8 @@ class BaseGraph(ABC):
             key=(edge.from_node_key, edge.to_node_key),
             from_node_key=edge.from_node_key,
             to_node_key=edge.to_node_key,
-            order=order
+            order=order,
+            idx=idx
         )
 
     def _add_dependency_edge(self, from_node: "AbstractOperation", to_node: "AbstractOperation"):
@@ -162,9 +163,15 @@ class BaseGraph(ABC):
         """
         # Iterate over all edges between the nodes
         return self._graph.get_edge_data(edge.from_node, edge.to_node, key=(edge.from_node_key, edge.to_node_key))
+    
+    def get_all_edge_data_between(self, from_node: "AbstractOperation", to_node: "AbstractOperation") -> dict:
+        """
+        Get all edges between two nodes in the graph.
+        """
+        return self._graph.get_edge_data(from_node, to_node)
 
     
-    def successors(self, node: "AbstractOperation") -> list["AbstractOperation"]:
+    def successors(self, node: "AbstractOperation") -> Iterator["AbstractOperation"]:
         """
         Get the successors of a given node in the graph.
 
@@ -172,6 +179,18 @@ class BaseGraph(ABC):
         :return: A list of successor nodes.
         """
         return self._graph.successors(node)
+    
+    def direct_predecessors(self, node: "AbstractOperation", include_dependencies: bool = True) -> list["AbstractOperation"]:
+        """
+        Get the predecessors of a given node in the graph.
+
+        :param node: The node to find predecessors for.
+        :return: A list of predecessor nodes.
+        """
+        if include_dependencies:
+            return self._graph.predecessors(node)
+        else:
+            return [predecessor for predecessor in self._graph.predecessors(node) if not any(edge_data.get("from_node_key") is None for edge_data in self._graph.get_edge_data(predecessor, node).values())]
     
     @property
     def edges(self) -> list[Edge]:

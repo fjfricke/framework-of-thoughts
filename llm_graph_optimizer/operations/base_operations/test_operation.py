@@ -10,6 +10,4 @@ class TestOperation(AbstractOperation):
 
     async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement | None]:
         output_reasoning_states = input_reasoning_states
-        for key, _ in self.output_types.items():
-            output_reasoning_states[key] = None
         return output_reasoning_states, None

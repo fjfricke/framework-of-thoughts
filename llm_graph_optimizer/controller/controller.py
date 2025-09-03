@@ -6,6 +6,7 @@ from typing import Callable
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
 from llm_graph_optimizer.graph_of_operations.snapshot_graph import SnapshotGraphs
 from llm_graph_optimizer.graph_of_operations.types import ReasoningState
+from llm_graph_optimizer.language_models.cache.cache import CacheContainer
 from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
 from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
 from llm_graph_optimizer.operations.helpers.exceptions import GraphExecutionFailed, OperationFailed
@@ -13,7 +14,7 @@ from llm_graph_optimizer.operations.helpers.node_state import NodeState
 import logging
 
 class Controller:
-    def __init__(self, graph_of_operations: GraphOfOperations, scheduler: Callable[[GraphOfOperations], list[AbstractOperation]], max_concurrent: int = 3, process_measurement: ProcessMeasurement = None, store_intermediate_snapshots: bool = False):
+    def __init__(self, graph_of_operations: GraphOfOperations, scheduler: Callable[[GraphOfOperations], list[AbstractOperation]], max_concurrent: int = 3, process_measurement: ProcessMeasurement = None, store_intermediate_snapshots: bool = False, save_to_cache_after_execution: CacheContainer = None):
         """
         Initialize the Controller with a graph of operations, a scheduler, and optional parameters.
 
@@ -30,6 +31,7 @@ class Controller:
         self.logger = logging.getLogger(__name__)
         self.process_measurement = process_measurement
         self.store_intermediate_snapshots = store_intermediate_snapshots
+        self.save_to_cache_after_execution = save_to_cache_after_execution
         if self.store_intermediate_snapshots:
             self.intermediate_snapshots = SnapshotGraphs()
 
@@ -173,7 +175,11 @@ class Controller:
         self.logger.debug("Returning final input reasoning states.")
 
         # Update snapshot graph in the process measurement
-        self.process_measurement.snapshot_graph = self.graph_of_operations.snapshot
+        if self.process_measurement:
+            self.process_measurement.snapshot_graph = self.graph_of_operations.snapshot
+        
+        if self.save_to_cache_after_execution:
+            self.save_to_cache_after_execution.save_persistent_cache()
         
         try:
             if self.graph_of_operations.end_node.node_state == NodeState.FAILED:

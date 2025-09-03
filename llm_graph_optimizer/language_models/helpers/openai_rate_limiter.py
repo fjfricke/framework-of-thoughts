@@ -17,7 +17,7 @@ class OpenAIRateLimiter:
     and provides mechanisms to synchronize local state with server-provided rate-limit headers.
     """
 
-    def __init__(self, rpm: int, tpm: int):
+    def __init__(self, rpm: int, tpm: int, max_estimated_response_tokens: int = 1000):
         """
         Initialize the rate-limiter with specified RPM and TPM limits.
 
@@ -32,7 +32,7 @@ class OpenAIRateLimiter:
         self._lock    = asyncio.Lock()
         self._queue: deque[_Ticket] = deque()
         self._task = None
-
+        self._max_estimated_response_tokens = max_estimated_response_tokens
     # ---------- public API -------------------------------------------------
 
     async def acquire(self, tokens_estimate: int = 1) -> None:
@@ -78,17 +78,20 @@ class OpenAIRateLimiter:
 
         :param headers: A dictionary containing rate-limit headers from the API response.
         """
-        lim_r = int(headers.get("x-ratelimit-limit-requests", 0))
-        rem_r = int(headers.get("x-ratelimit-remaining-requests", -1))
-        lim_t = int(headers.get("x-ratelimit-limit-tokens", 0))
-        rem_t = int(headers.get("x-ratelimit-remaining-tokens", -1))
+        try:
+            lim_r = int(headers.get("x-ratelimit-limit-requests", None))
+            rem_r = int(headers.get("x-ratelimit-remaining-requests", None))
+            lim_t = int(headers.get("x-ratelimit-limit-tokens", None))
+            rem_t = int(headers.get("x-ratelimit-remaining-tokens", None))
+        except Exception:
+            return
 
         async with self._lock:
             # Update bucket size and current fill-level if limits have changed
-            if lim_r:
+            if lim_r and rem_r:
                 self._req_bucket = rem_r if rem_r >= 0 else min(self._req_bucket, lim_r)
                 self.rpm = float(lim_r)
-            if lim_t:
+            if lim_t and rem_t:
                 self._tok_bucket = rem_t if rem_t >= 0 else min(self._tok_bucket, lim_t)
                 self.tpm = float(lim_t)
 

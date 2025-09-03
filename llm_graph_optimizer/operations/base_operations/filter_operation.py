@@ -26,7 +26,7 @@ class FilterOperation(AbstractOperation):
 
         Args:
             output_types (ReasoningStateType): Expected types for output reasoning states.
-            input_types (ReasoningStateType): Expected types for input reasoning states.
+            input_types (ReasoningStateType): Expected types for input reasoning states. All must be of origin type ManyToOne.
             filter_function (Callable[..., ReasoningState]): Function to filter reasoning states.
             params (dict, optional): Parameters for the operation. Defaults to None.
             name (str, optional): Name of the operation. Defaults to the class name.

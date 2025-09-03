@@ -41,7 +41,7 @@ class OpenAIChat(AbstractLanguageModel):
         self.response_price_per_token = response_price_per_token
 
         transport = TimingAsyncHTTPTransport()
-        http_client = AsyncClient(transport=transport)
+        http_client = AsyncClient(transport=transport, timeout=20)
         self._client = AsyncOpenAI(api_key=api_key, http_client=http_client)
         self._openai_rate_limiter = openai_rate_limiter
 
@@ -55,32 +55,34 @@ class OpenAIChat(AbstractLanguageModel):
             "request_price_per_token": self.request_price_per_token,
             "response_price_per_token": self.response_price_per_token
         }
+    
+    async def _raw_query(self, prompt: str) -> tuple[str, Measurement | None]:
+        messages = [{"role": "user", "content": prompt}]
+        return await self._raw_chat_query(messages)
 
     @backoff.on_exception(backoff.expo, OpenAIError, max_time=10, max_tries=6)
-    async def _raw_query(self, prompt: str) -> tuple[str, Measurement | None]:
+    async def _raw_chat_query(self, prompt: list[dict[str, str]]) -> tuple[str, Measurement | None]:
         """
         Query the OpenAI ChatCompletion API and return metadata.
 
         :param prompt: The input prompt for the model.
         :return: The response and the measurement.
         """
-        # Prepare the messages for the ChatCompletion API
-        messages = [{"role": "user", "content": prompt}]
 
         if self._openai_rate_limiter:
             try:
                 enc = tiktoken.encoding_for_model(self.model)
             except KeyError:
                 enc = tiktoken.get_encoding("cl100k_base")  # fallback since tiktoken is not up-to-date (It is the same tokenizer for newer models)
-            prompt_tokens = len(enc.encode(prompt))
-            estimated_response_tokens = self._config.max_tokens or 1000
+            prompt_tokens = len(enc.encode(str(prompt)))
+            estimated_response_tokens = self._config.max_tokens or self._openai_rate_limiter._max_estimated_response_tokens
             await self._openai_rate_limiter.acquire(prompt_tokens + estimated_response_tokens)
 
         # Call the OpenAI ChatCompletion API
         try:
             response = await self._client.chat.completions.create(
                 model=self.model,
-                messages=messages,
+                messages=prompt,
                 temperature=self._config.temperature,
                 max_tokens=self._config.max_tokens,
                 stop=self._config.stop

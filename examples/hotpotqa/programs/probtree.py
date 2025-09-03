@@ -1,34 +1,59 @@
 import logging
 import os
 from pathlib import Path
+import dspy
 
 from examples.hotpotqa.programs.operations.reasoning.child_aggregate import ChildAggregateReasoning
 from examples.hotpotqa.programs.operations.reasoning.closed_book import ClosedBookReasoning
 from examples.hotpotqa.programs.operations.reasoning.filter import filter_function, filter_function_with_scaling_and_shifting
 from examples.hotpotqa.programs.operations.reasoning.open_book import OpenBookReasoning, get_retriever
 from examples.hotpotqa.programs.operations.unterstanding.understanding import UnderstandingGraphUpdating
-from examples.hotpotqa.programs.operations.unterstanding.prompter_parser import understanding_parser, understanding_prompt
+from examples.hotpotqa.programs.operations.unterstanding.prompter_parser import understanding_parser, understanding_prompt_hotpotqa, understanding_prompt_musique
+
+from examples.hotpotqa.programs.operations.reasoning.open_book import prompter_hotpotqa as open_book_prompt_hotpotqa
+from examples.hotpotqa.programs.operations.reasoning.open_book import prompter_musique as open_book_prompt_musique
+
+from examples.hotpotqa.programs.operations.reasoning.closed_book import prompter_hotpotqa as closed_book_prompt_hotpotqa
+from examples.hotpotqa.programs.operations.reasoning.closed_book import prompter_musique as closed_book_prompt_musique
+
 from examples.openai_pricing import OPENAI_PRICING
 from llm_graph_optimizer.controller.controller import Controller
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
 from llm_graph_optimizer.graph_of_operations.types import Edge, ManyToOne
+from llm_graph_optimizer.language_models.cache.cache import CacheContainer
 from llm_graph_optimizer.language_models.helpers.language_model_config import Config
 from llm_graph_optimizer.language_models.openai_chat_with_logprobs import OpenAIChatWithLogprobs
 from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
 from llm_graph_optimizer.operations.base_operations.end import End
 from llm_graph_optimizer.operations.base_operations.filter_operation import FilterOperation
 from llm_graph_optimizer.operations.base_operations.start import Start
+from llm_graph_optimizer.operations.llm_operations.dspy.shared_prompt_llm_operation import SharedPromptLLMOperation
 from llm_graph_optimizer.operations.llm_operations.llm_operation_with_logprobs import LLMOperationWithLogprobs
 from llm_graph_optimizer.schedulers.schedulers import Scheduler
 
 retriever = get_retriever(Path().resolve() / "examples" / "hotpotqa" / "dataset" / "HotpotQA" / "wikipedia_index_bm25")
+cache = CacheContainer.from_persistent_cache_file(Path(__file__).parent.parent / "output" / "cache.pkl", skip_on_file_not_found=True, load_as_virtual_persistent_cache=True)
 
-def probtree_controller(llm: OpenAIChatWithLogprobs, n_retrieved_docs: int = 5, scaling_factors: list[float] = None, shifting_factors: list[float] = None) -> Controller:
+def probtree_controller(llm: OpenAIChatWithLogprobs, n_retrieved_docs: int = 5, scaling_factors: list[float] = None, shifting_factors: list[float] = None, max_concurrent: int = 1, use_dspy: bool = False, dataset: str = "hotpotqa", hqdt_prompter = None) -> Controller:
     """
     This function creates a controller for the ProbTree algorithm.
     It takes a language model, a number of retrieved documents, and optional scaling and shifting factors. Do not create the LLM inside the controller generator function. It needs to be shared across controllers to use the same shared cache.
     It returns a controller that can be used to execute the ProbTree algorithm.
     """
+
+    if dataset == "hotpotqa":
+        if hqdt_prompter is None:
+            understanding_prompter = understanding_prompt_hotpotqa
+        else:
+            understanding_prompter = hqdt_prompter
+        open_book_prompter = open_book_prompt_hotpotqa
+        closed_book_prompter = closed_book_prompt_hotpotqa
+    elif dataset == "musique":
+        understanding_prompter = understanding_prompt_musique
+        open_book_prompter = open_book_prompt_musique
+        closed_book_prompter = closed_book_prompt_musique
+    else:
+        raise ValueError(f"Dataset {dataset} not supported")
 
     start_node = Start(
         input_types={"question": str},
@@ -40,23 +65,41 @@ def probtree_controller(llm: OpenAIChatWithLogprobs, n_retrieved_docs: int = 5, 
         input_types={"answer": str, "decomposition_score": float},
     )
 
-    generate_hqdt_node = LLMOperationWithLogprobs(
-        llm=llm,
-        prompter=understanding_prompt,
-        parser=understanding_parser,
-        input_types={"question": str},
-        output_types={"hqdt": dict},
+    if not use_dspy:
+        generate_hqdt_node = LLMOperationWithLogprobs(
+            llm=llm,
+            prompter=understanding_prompter,
+            parser=understanding_parser,
+            input_types={"question": str},
+            output_types={"hqdt": dict},
         name="GenerateTree"
     )
+    else:
+        class GenerateTreeSignature(dspy.Signature):
+            """Generate a tree of atomic subquestions from a multi-hop question."""
+            question: str = dspy.InputField(description="The multi-hop question to decompose.")
+            hqdt: dict = dspy.OutputField(description='The tree of atomic subquestions. The format looks like this: {"An actor in Nowhere to Run is a national of a European country. That country\'s King Albert I lived during a major war that Italy joined in what year?": ["Albert I of the country which has the actor in Nowhere to Run lived during which war?", "When did Italy join #1?"], "Albert I of the country which has the actor in Nowhere to Run lived during which war?": ["Tell me the country which has the actor in Nowhere to Run", "Albert I of #1 lived during which war?"], "Tell me the country which has the actor in Nowhere to Run": ["Nowhere to Run\'s cast member is whom?", "What is the country of #1?"]}.')
+        
+        generate_hqdt_node = SharedPromptLLMOperation(
+            operation_type=LLMOperationWithLogprobs,
+            group_id="generate_hqdt",
+            llm=llm,
+            parser=understanding_parser,
+            signature=GenerateTreeSignature,
+            input_types={"question": str},
+            output_types={"hqdt": dict},
+            name="GenerateTree"
+        )
 
     open_book_op = lambda: OpenBookReasoning(
         llm=llm,
         retriever=retriever,
         k=n_retrieved_docs,
-        name="OB"
+        name="OB",
+        prompter=open_book_prompter
     )
     
-    closed_book_op = lambda: ClosedBookReasoning(llm=llm, name="CB")
+    closed_book_op = lambda: ClosedBookReasoning(llm=llm, name="CB", prompter=closed_book_prompter)
 
     child_aggregate_op = lambda: ChildAggregateReasoning(llm=llm, name="CA")
 
@@ -97,7 +140,7 @@ def probtree_controller(llm: OpenAIChatWithLogprobs, n_retrieved_docs: int = 5, 
     controller = Controller(
         graph_of_operations=probtree_graph,
         scheduler=Scheduler.BFS,
-        max_concurrent=1,
+        max_concurrent=max_concurrent,
         process_measurement=process_measurement,
         store_intermediate_snapshots=True
     )

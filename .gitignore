@@ -173,13 +173,13 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-
-**/dataset_old/*
 examples/hotpotqa/dataset/HotpotQA/*
 
 graphs/*
-**/output/*
-!**/output/experiment*/
 .DS_Store
 
 **/old_studies/*
+
+**/dataset_cache.pkl
+**/test_dataset_cache.pkl
+**/cache.pkl
