@@ -1,4 +1,4 @@
-# The prompts are based on tge GoT paper: https://github.com/spcl/graph-of-thoughts
+# The prompts are based on the GoT paper: https://github.com/spcl/graph-of-thoughts
 # and were adapted for this survey: https://github.com/simonmalberg/llm-graph-based-problem-solving
 
 # Initialize the LLM generate operation and node
