@@ -60,14 +60,20 @@ class Predecessors(BaseGraph):
         """
         raise PermissionError("Removing edges is forbidden in Predecessors.")
     
-    def predecessor_edges(self, node: "AbstractOperation") -> list[Edge]:
+    def predecessor_edges(self, node: "AbstractOperation", include_dependencies: bool = True) -> list[Edge]:
         """
         Get the predecessor edges of a node in the Predecessors subgraph.
 
         :param node: The node to retrieve predecessor edges for.
+        :param include_dependencies: Whether to include dependency edges.
         :return: A list of predecessor edges.
         """
-        return Edge.from_edge_view(self._graph.in_edges(node, data=True))
+        if include_dependencies:
+            return Edge.from_edge_view(self._graph.in_edges(node, data=True))
+        else:
+            all_predecessor_edges = Edge.from_edge_view(self._graph.in_edges(node, data=True))
+            all_predecessor_edges_with_from_node_key = [edge for edge in all_predecessor_edges if edge.from_node_key is not None]
+            return all_predecessor_edges_with_from_node_key
     
     @property
     def start_node(self) -> "AbstractOperation":
@@ -339,6 +345,7 @@ class GraphPartitions:
         self.descendants = descendants
         self.exclusive_descendants = exclusive_descendants
         self.original_graph = predecessors.original_graph
+
     def move_edge_start_node(self, current_edge: Edge, new_from_node: "AbstractOperation", new_from_node_key: NodeKey):
         """
         Move an edge within the graph partitions. Only allowed for edges from the exclusive descendants to the descendants partition. The new from_node must be in the exclusive descendants or predecessors partition.
@@ -355,6 +362,8 @@ class GraphPartitions:
             raise ValueError(f"In order to move an edge, the previous from_node must be in the exclusive Descendants graph. {current_edge.from_node} is not.")
         if new_from_node not in self.exclusive_descendants and new_from_node not in self.predecessors:
             raise ValueError(f"In order to move an edge, the new from_node must be in the exclusive Descendants or predecessors graph. {new_from_node} is not.")
+        if current_edge.from_node == self.predecessors.end_node and (current_edge.from_node, current_edge.to_node) not in self.original_graph.dependency_edges:
+            self.original_graph._add_dependency_edge(current_edge.from_node, current_edge.to_node)
         self.original_graph._remove_edge(current_edge)
         self.original_graph._add_edge(Edge(new_from_node, current_edge.to_node, new_from_node_key, current_edge.to_node_key), order=edge_data.get("order", 0), idx=edge_data.get("idx", 0))
         if new_from_node in self.predecessors:

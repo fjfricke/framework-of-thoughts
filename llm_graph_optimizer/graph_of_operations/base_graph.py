@@ -180,17 +180,17 @@ class BaseGraph(ABC):
         """
         return self._graph.successors(node)
     
-    def direct_predecessors(self, node: "AbstractOperation", include_dependencies: bool = True) -> list["AbstractOperation"]:
+    def direct_predecessors(self, node: "AbstractOperation", include_dependencies: bool = True) -> set["AbstractOperation"]:
         """
         Get the predecessors of a given node in the graph.
 
         :param node: The node to find predecessors for.
-        :return: A list of predecessor nodes.
+        :return: A set of predecessor nodes.
         """
         if include_dependencies:
-            return self._graph.predecessors(node)
+            return set(self._graph.predecessors(node))
         else:
-            return [predecessor for predecessor in self._graph.predecessors(node) if not any(edge_data.get("from_node_key") is None for edge_data in self._graph.get_edge_data(predecessor, node).values())]
+            return {predecessor for predecessor in self._graph.predecessors(node) if not any(edge_data.get("from_node_key") is None for edge_data in self._graph.get_edge_data(predecessor, node).values())}
     
     @property
     def edges(self) -> list[Edge]:
@@ -200,6 +200,14 @@ class BaseGraph(ABC):
         :return: A list of Edge objects representing the graph's edges.
         """
         return [Edge(from_node=edge[0], to_node=edge[1], from_node_key=edge[2]["from_node_key"], to_node_key=edge[2]["to_node_key"]) for edge in self._graph.edges(data=True)]
+
+    @property
+    def dependency_edges(self) -> list[tuple["AbstractOperation", "AbstractOperation"]]:
+        return [
+            (u, v)
+            for u, v, data in self._graph.edges(data=True)
+            if "from_node_key" not in data and "to_node_key" not in data
+        ]
     
     def longest_path(self, weight: Callable[["AbstractOperation"], Number]) -> Number:
         """

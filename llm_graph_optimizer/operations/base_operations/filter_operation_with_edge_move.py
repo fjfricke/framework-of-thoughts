@@ -8,7 +8,17 @@ from llm_graph_optimizer.measurement.measurement import Measurement
 
 class Correspondence(Enum):
     """
-    Whether the end nodes are one or num_branches
+    Specifies how selected predecessor branches are wired to successor nodes.
+
+    - ONE_TO_ONE: Each selected index feeds exactly one successor input. The
+      outgoing edges of this filter (grouped by their `order`) are re-attached
+      so that every successor consumes the reasoning state from the single
+      selected predecessor with the matching `from_node_key`.
+
+    - MANY_TO_ONE: All selected branches for a given `from_node_key` are routed
+      into a single successor input that expects `ManyToOne`. The edge from this
+      filter to the successor is duplicated so that each selected predecessor
+      becomes a source for the same `to_node_key`, preserving `order`.
     """
     MANY_TO_ONE = "many_to_one"
     ONE_TO_ONE = "one_to_one"
@@ -56,6 +66,12 @@ class FilterOperationWithEdgeMove(AbstractOperation):
     is expected to return the indices of the top reasoning states based
     on a specified criterion (e.g., F1 scores).
 
+    Wiring behavior is controlled by `Correspondence`:
+    - ONE_TO_ONE: Each successor edge (per `order`) is redirected to exactly one selected predecessor
+      with matching `from_node_key`.
+    - MANY_TO_ONE: Successor edges are duplicated so that all selected predecessors for the same
+      `from_node_key` connect to a single successor input that expects `ManyToOne`.
+
     Attributes:
         input_types (ReasoningStateType): Expected types for input reasoning states.
         filter_function (Callable[..., list[int]]): Function to filter reasoning states and return indices of the top states.
@@ -70,6 +86,9 @@ class FilterOperationWithEdgeMove(AbstractOperation):
         Args:
             input_types (ReasoningStateType): Expected types for input reasoning states. All must be of origin type ManyToOne.
             filter_function (Callable[..., list[int]]): Function to filter reasoning states and return indices of the top states.
+            correspondence (Correspondence, optional): Defines how selected branches are connected to successors.
+                - ONE_TO_ONE: Reattach each successor edge to exactly one selected predecessor with the same `from_node_key`.
+                - MANY_TO_ONE: Duplicate successor edges so all selected predecessors for a `from_node_key` feed a single successor input expecting `ManyToOne`.
             params (dict, optional): Parameters for the operation. Defaults to None.
             name (str, optional): Name of the operation. Defaults to the class name.
 
@@ -85,10 +104,12 @@ class FilterOperationWithEdgeMove(AbstractOperation):
         self.filter_function = filter_function
         super().__init__(input_types, Dynamic, params, name)
         self.correspondence = correspondence
+
+
     async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement | None]:
         indices = self.filter_function(**input_reasoning_states)
         # get predecessor edges and filter by the ones in the filtered indices
-        predecessor_edges = partitions.predecessors.predecessor_edges(self)
+        predecessor_edges = partitions.predecessors.predecessor_edges(self, include_dependencies=False)
         index_to_edges = _map_indices_to_edges(predecessor_edges, indices)
 
         if self.correspondence == Correspondence.ONE_TO_ONE:
