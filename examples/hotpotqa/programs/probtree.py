@@ -126,7 +126,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.CRITICAL)
     logging.getLogger('llm_graph_optimizer.controller.controller').setLevel(logging.DEBUG)
 
-    model = "gpt-4o-mini"
+    model = "gpt-4.1-mini"
     llm = OpenAIChatWithLogprobs(model=model, config=Config(temperature=0.0), request_price_per_token=OPENAI_PRICING[model]["request_price_per_token"], response_price_per_token=OPENAI_PRICING[model]["response_price_per_token"])
     controller = probtree_controller(llm=llm)
 

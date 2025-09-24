@@ -68,7 +68,7 @@ def test_dataset_evaluation(dataset: str = "hotpotqa"):
 
     dataloader = lambda: dataloader_factory_with_split(Split.VALIDATION)
     cache = CacheContainer.from_persistent_cache_file(Path(__file__).parent / "output" / "cache.pkl", skip_on_file_not_found=True, load_as_virtual_persistent_cache=True)
-    model = "gpt-4o-mini"
+    model = "gpt-4.1-mini"
     llm = OpenAIChatWithLogprobs(
         model=model,
         config=Config(temperature=0.0),
@@ -95,5 +95,6 @@ def test_dataset_evaluation(dataset: str = "hotpotqa"):
     dataset_measurement.save(Path(__file__).parent / "output" / "dataset_measurement.pkl")
     cache.save_persistent_cache(Path(__file__).parent / "output" / "cache.pkl")
     print(scores)
+
 if __name__ == "__main__":
     test_dataset_evaluation(dataset="hotpotqa")  # hotpotqa or musique
