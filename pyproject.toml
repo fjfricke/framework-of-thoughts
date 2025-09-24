@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "llm_graph_optimizer"
-version = "0.2.0"
+version = "0.3.0"
 description = ""
 authors = ["Anonymous"]
 readme = "README.md"
@@ -30,7 +30,7 @@ dspy = "^3"
 numexpr = "^2.12.1"
 
 [tool.poetry.extras]
-examples = ["jupyter", "bm25s"]
+examples = ["jupyter", "bm25s", "numexpr"]
 dataset = ["numpy", "xlsxwriter"]
 optimizer = ["numpy", "xlsxwriter", "optuna", "optuna-dashboard", "dspy"]
 dev = ["ruff", "pre-commit"]

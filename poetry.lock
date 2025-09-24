@@ -2838,6 +2838,7 @@ description = "Fast numerical expression evaluator for NumPy"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
+markers = "extra == \"examples\""
 files = [
     {file = "numexpr-2.12.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:56f045d76196a77dccffda1341b1998ca54a58c61ceac7601c30092e528fb012"},
     {file = "numexpr-2.12.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:5e1e0db698ee448ecdb9223d004c38c3e75e2848795fb8e5b1900396c373ca8b"},
@@ -5447,10 +5448,10 @@ type = ["pytest-mypy"]
 [extras]
 dataset = ["numpy", "xlsxwriter"]
 dev = ["pre-commit", "ruff"]
-examples = ["bm25s", "jupyter"]
+examples = ["bm25s", "jupyter", "numexpr"]
 optimizer = ["dspy", "numpy", "optuna", "optuna-dashboard", "xlsxwriter"]
 
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "23a45ddfe0724f97ca265c4992246dcc8f0412526958dcdc400e3e925814053e"
+content-hash = "c1fa986bebdf9b1bde941fa2cb067111e7f7ab4ff3fcf90acea8a975f8118d7a"
