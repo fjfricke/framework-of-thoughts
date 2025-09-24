@@ -270,3 +270,67 @@ class SnapshotGraph():
         nt.set_options(json.dumps(physics_options))
 
         return nt
+
+    def save_graphml(self, path: str, include_values: bool = False):
+        """
+        Save a sanitized GraphML representation of the snapshot graph.
+
+        This converts all node IDs to strings, coerces node attributes to
+        GraphML-supported primitives, removes/strings non-serializable values,
+        and sets graph-level attributes to strings.
+
+        :param path: Output file path for the GraphML file.
+        :param include_values: If True, includes edge "value" as string (repr, truncated).
+        """
+        # Build a fresh MultiDiGraph with safe types only
+        safe_graph = nx.MultiDiGraph()
+
+        # Graph-level attributes: store start/end as strings only
+        if self._start_node is not None:
+            safe_graph.graph["start_node"] = str(self._start_node)
+        if self._end_node is not None:
+            safe_graph.graph["end_node"] = str(self._end_node)
+
+        # Nodes: coerce IDs to strings and attributes to primitives
+        for node_id, attrs in self._graph.nodes(data=True):
+            safe_node_id = str(node_id)
+            safe_attrs: dict[str, any] = {}
+            label = attrs.get("label")
+            if label is not None:
+                safe_attrs["label"] = str(label)
+            state = attrs.get("state")
+            if state is not None:
+                # NodeState has __str__, so this yields its value
+                safe_attrs["state"] = str(state)
+            safe_graph.add_node(safe_node_id, **safe_attrs)
+
+        # Edges: keep only primitive/safe attributes; optionally stringify "value"
+        def _to_primitive(value: any) -> str | int | float | bool | None:
+            if value is None:
+                return None
+            if isinstance(value, (str, int, float, bool)):
+                return value
+            # Fallback to string
+            return str(value)
+
+        for u, v, key, data in self._graph.edges(keys=True, data=True):
+            safe_u, safe_v = str(u), str(v)
+            safe_data: dict[str, any] = {}
+            for k in ("from_node_key", "to_node_key", "order", "idx"):
+                if k in data:
+                    coerced = _to_primitive(data[k])
+                    if coerced is not None:
+                        safe_data[k] = coerced
+            if include_values and "value" in data:
+                # Stringify and truncate overly long values to keep files reasonable
+                try:
+                    val_str = str(data["value"])
+                except Exception:
+                    val_str = "<unserializable>"
+                if len(val_str) > 2000:
+                    val_str = val_str[:2000] + "…"
+                safe_data["value"] = val_str
+            safe_graph.add_edge(safe_u, safe_v, key=key, **safe_data)
+
+        # Finally, write GraphML
+        nx.write_graphml(safe_graph, path)

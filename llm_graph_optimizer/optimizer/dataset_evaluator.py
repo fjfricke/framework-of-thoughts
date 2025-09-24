@@ -18,6 +18,7 @@ class DatasetEvaluator:
 
     This class manages the evaluation of a dataset by executing a graph of operations, measuring performance, and calculating scores
     based on user-defined metrics.
+    It also calculates confidence intervals for the scores using a t-test. Do not use for small n or distributions that are not approximately normal.
 
     Attributes:
         controller_factory (ControllerFactory): Function that creates a controller.

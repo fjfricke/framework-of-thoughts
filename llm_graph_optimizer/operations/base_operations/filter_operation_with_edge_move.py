@@ -4,6 +4,7 @@ from typing import Callable, OrderedDict, get_origin
 from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import Dynamic, Edge, ManyToOne, ReasoningState, ReasoningStateType
 from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
+from llm_graph_optimizer.operations.helpers.exceptions import OperationFailed
 from llm_graph_optimizer.measurement.measurement import Measurement
 
 class Correspondence(Enum):
@@ -107,7 +108,10 @@ class FilterOperationWithEdgeMove(AbstractOperation):
 
 
     async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement | None]:
-        indices = self.filter_function(**input_reasoning_states)
+        try:
+            indices = self.filter_function(**input_reasoning_states)
+        except Exception as e:
+            raise OperationFailed(f"Filter function failed: {e}")
         # get predecessor edges and filter by the ones in the filtered indices
         predecessor_edges = partitions.predecessors.predecessor_edges(self, include_dependencies=False)
         index_to_edges = _map_indices_to_edges(predecessor_edges, indices)

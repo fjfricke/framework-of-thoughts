@@ -1,6 +1,6 @@
 import backoff
 from httpx import AsyncClient
-from openai import AsyncOpenAI, OpenAIError
+from openai import NOT_GIVEN, AsyncOpenAI, OpenAIError
 from dotenv import load_dotenv
 from os import getenv
 
@@ -83,9 +83,9 @@ class OpenAIChat(AbstractLanguageModel):
             response = await self._client.chat.completions.create(
                 model=self.model,
                 messages=prompt,
-                temperature=self._config.temperature,
-                max_tokens=self._config.max_tokens,
-                stop=self._config.stop
+                temperature=self._config.temperature if self._config.temperature is not None else NOT_GIVEN,
+                max_tokens=self._config.max_tokens if self._config.max_tokens is not None else NOT_GIVEN,
+                stop=self._config.stop if self._config.stop is not None else NOT_GIVEN
             )
         finally:
             if self._openai_rate_limiter:
