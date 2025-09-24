@@ -67,7 +67,7 @@ A tutorial is provided under `examples/test/tutorial.ipynb` to show how to use t
 ## Features
 
 - Modelling of graph-based prompting strategies with support for various graph operations and measurements
-- Integration with `optuna` for optimization of hyperparameters
+- Integration with `optuna` for optimization of hyperparameters. Integration with `dspy` for optimization of prompts. Note that the latter is not fully supported and only a COPRO-style prompt optimization on a single prompt is implemented so far.
 - Example scripts and datasets to reproduce the results in the paper.
 
 ## Setting the OpenAI API key
