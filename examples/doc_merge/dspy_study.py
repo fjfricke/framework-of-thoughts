@@ -24,8 +24,8 @@ cache = CacheContainer.from_persistent_cache_file(
     skip_on_file_not_found=True
 )
 
-model_gen = "gpt-4.1-nano"
-model_score = "gpt-4.1-mini"
+model_gen = "gpt-3.5-turbo"
+model_score = "gpt-3.5-turbo"
 openai_rate_limiter = OpenAIRateLimiter(
     rpm=OPENAI_PRICING[model_gen]["RPM"],
     tpm=OPENAI_PRICING[model_gen]["TPM"],
@@ -58,13 +58,13 @@ controller_factory = lambda: got_controller(
 train_dataloader = lambda: DocMergeDataloader(
     execution_mode=Split.TRAIN,
     dataset_path=Path(__file__).parent / "dataset" / "documents.csv",
-    split=0.3,
+    split=0.5,
     seed=42,
 )
 eval_dataloader = lambda: DocMergeDataloader(
     execution_mode=Split.VALIDATION,
     dataset_path=Path(__file__).parent / "dataset" / "documents.csv",
-    split=0.3,
+    split=0.5,
     seed=42,
 )
 
@@ -88,9 +88,9 @@ study = DSPyPromptStudy(
     seed_instruction="",
     seed_prefix="",
     prompt_lm=dspy_llm,
-    depth=3,
-    keep_top=3,
-    breadth=5,
+    depth=6,
+    keep_top=8,
+    breadth=8,
     study_measurement=study_measurement,
     save_history_dir=Path(__file__).parent / "output" / "dspy_study"
 )

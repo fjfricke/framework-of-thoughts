@@ -26,7 +26,8 @@ xlsxwriter = "^3.2.3"
 nest-asyncio = "^1.6.0"
 dotenv = "^0.9.9"
 tiktoken = "^0.9.0"
-dspy = "^2.6.23"
+dspy = "^3"
+numexpr = "^2.12.1"
 
 [tool.poetry.extras]
 examples = ["jupyter", "bm25s"]

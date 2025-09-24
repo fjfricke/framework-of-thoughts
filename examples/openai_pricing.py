@@ -45,8 +45,8 @@ OPENAI_PRICING = {
         "request_price_per_token": 2.5 / 1_000_000,
         "cached_input_price_per_token": 1.25 / 1_000_000,
         "response_price_per_token": 10.0 / 1_000_000,
-        "TPM": 800_000,
-        "RPM": 5_000,
+        "TPM": 30_000_000,
+        "RPM": 10_000,
     },
     "gpt-4o-audio-preview": {
         "request_price_per_token": 2.5 / 1_000_000,
@@ -63,8 +63,8 @@ OPENAI_PRICING = {
         "request_price_per_token": 0.15 / 1_000_000,
         "cached_input_price_per_token": 0.075 / 1_000_000,
         "response_price_per_token": 0.6 / 1_000_000,
-        "TPM": 4_000_000,
-        "RPM": 5_000,
+        "TPM": 150_000_000,
+        "RPM": 30_000,
     },
     "gpt-4o-mini-audio-preview": {
         "request_price_per_token": 0.15 / 1_000_000,
@@ -197,5 +197,11 @@ OPENAI_PRICING = {
         "response_price_per_token": 0.4 / 1_000_000,
         "TPM": 250_000,
         "RPM": 3_000,
+    },
+    "gpt-5-mini": {
+        "request_price_per_token": 0.25 / 1_000_000,
+        "response_price_per_token": 2.0 / 1_000_000,
+        "TPM": 180_000_000,
+        "RPM": 30_000,
     },
 }

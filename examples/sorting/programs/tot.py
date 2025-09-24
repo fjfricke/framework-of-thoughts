@@ -14,7 +14,7 @@ from llm_graph_optimizer.operations.base_operations.end import End
 from llm_graph_optimizer.graph_of_operations.types import Edge, ManyToOne
 
 
-def tot_controller(llm: AbstractLanguageModel, num_branches: int = 20, improvement_levels: int = 2, max_concurrent: int = 5) -> Controller:
+def tot_controller(llm: AbstractLanguageModel = OpenAIChat(model="gpt-4o"), num_branches: int = 20, improvement_levels: int = 2, max_concurrent: int = 5) -> Controller:
 
     # llm = OpenAIChat(model="gpt-4o")
     # Initialize the start node
