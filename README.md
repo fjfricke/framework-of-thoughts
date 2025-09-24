@@ -58,17 +58,17 @@ poetry install --all-extras
 
 ## Usage
 
-Explore the `examples` directory for modelling Tree-of-Thought (ToT) on the Sorting Problem, and ProbTree and variations thereof on the HotpotQA dataset.
+Explore the `examples` directory for modelling Tree-of-Thought on the Sorting Problem and Game of 24, ProbTree and Graph-of-Thought on the NDA task.
 
 A mock example called "test" is also provided to show how to use the library using Self-Consistency prompting on simple math problems.
 
-A tutorial is provided under `examples/test/tutorial.ipynb` to show how to use the library for modelling and optimizing execution graphs. I recommend checking that out to get started. You can find a snapshot html version [here](https://fjfricke.github.io/llm-graph-optimizer-tutorial) (might not be up-to-date) or at `examples/test/tutorial_snapshot.html`.
+A tutorial is provided under `examples/test/tutorial.ipynb` to show how to use the library for modelling and optimizing execution graphs. I recommend checking that out to get started. You can find a snapshot html version at `examples/test/tutorial_snapshot.html`.
 
 ## Features
 
 - Modelling of graph-based prompting strategies with support for various graph operations and measurements
 - Integration with `optuna` for optimization of hyperparameters
-- Example scripts and datasets to reproduce the results in the research handin.
+- Example scripts and datasets to reproduce the results in the paper.
 
 ## Setting the OpenAI API key
 
