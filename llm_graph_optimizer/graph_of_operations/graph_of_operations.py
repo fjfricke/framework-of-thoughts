@@ -4,7 +4,7 @@ from typeguard import TypeCheckError, check_type
 from .base_graph import BaseGraph
 from .types import Edge, NodeKey, ManyToOne, OneToMany, StateSetFailed
 from llm_graph_optimizer.operations.helpers.node_state import NodeState
-from .graph_partitions import Descendants, ExclusiveDescendants, GraphPartitions, Predecessors
+from .graph_partitions import Descendants, ExclusiveDescendants, GraphPartitions, Ancestors
 if TYPE_CHECKING:
     from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
 
@@ -180,25 +180,25 @@ class GraphOfOperations(BaseGraph):
     
     def partitions(self, node: "AbstractOperation") -> GraphPartitions:
         """
-        Partition the graph into predecessors, descendants, and exclusive descendants of a node (all containing the node itself).
+        Partition the graph into ancestors, descendants, and exclusive descendants of a node (all containing the node itself).
 
         :param node: The node to partition the graph around.
         :return: A GraphPartitions object containing the partitions.
         """
         all_nodes = set(self._graph.nodes)
 
-        # Compute predecessors and descendants
-        predecessors_nodes = nx.ancestors(self._graph, node) | {node}
+        # Compute ancestors and descendants
+        ancestors_nodes = nx.ancestors(self._graph, node) | {node}
         descendants_nodes = nx.descendants(self._graph, node) | {node}
 
-        unconnected_nodes = all_nodes - predecessors_nodes - descendants_nodes - {node}
+        unconnected_nodes = all_nodes - ancestors_nodes - descendants_nodes - {node}
         unconnected_descendant_nodes = set()
         for unconnected_node in unconnected_nodes:
             unconnected_descendant_nodes.update(nx.descendants(self._graph, unconnected_node))
         exclusive_descendant_nodes = descendants_nodes - unconnected_descendant_nodes | {node}
 
         return GraphPartitions(
-            predecessors=Predecessors(self, self._graph.subgraph(predecessors_nodes)),
+            ancestors=Ancestors(self, self._graph.subgraph(ancestors_nodes)),
             descendants=Descendants(self, self._graph.subgraph(descendants_nodes)),
             exclusive_descendants=ExclusiveDescendants(self, self._graph.subgraph(exclusive_descendant_nodes))
             )

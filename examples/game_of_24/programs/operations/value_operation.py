@@ -25,7 +25,7 @@ class ValueOperation(AbstractOperation):
         )
         partitions.exclusive_descendants.add_node(score_node)
 
-        predecessor_edge = partitions.predecessors.predecessor_edges(self)[0]
+        predecessor_edge = partitions.ancestors.predecessor_edges(self)[0]
         
         for i in range(self.samples):
             value_node = BaseLLMOperation(

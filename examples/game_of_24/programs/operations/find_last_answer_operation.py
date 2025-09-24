@@ -11,9 +11,9 @@ class FindLastAnswerOperation(AbstractOperation):
         super().__init__(input_types, output_types, params, name)
 
     async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement | None]:
-        previous_score_node = list(partitions.predecessors.direct_predecessors(self, include_dependencies=False))[0]
-        previous_llm_evaluate_node = list(partitions.predecessors.direct_predecessors(previous_score_node, include_dependencies=False))[0]
-        answer_edge = [edge for edge in partitions.predecessors.predecessor_edges(previous_llm_evaluate_node) if edge.to_node_key == "answer"][0]
+        previous_score_node = list(partitions.ancestors.direct_predecessors(self, include_dependencies=False))[0]
+        previous_llm_evaluate_node = list(partitions.ancestors.direct_predecessors(previous_score_node, include_dependencies=False))[0]
+        answer_edge = [edge for edge in partitions.ancestors.predecessor_edges(previous_llm_evaluate_node) if edge.to_node_key == "answer"][0]
 
         successor_edge_score = [edge for edge in partitions.descendants.successor_edges(self) if edge.to_node_key == "score"][0]
         successor_edge_answer = [edge for edge in partitions.descendants.successor_edges(self) if edge.to_node_key == "answer"][0]

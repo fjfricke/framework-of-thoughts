@@ -114,7 +114,7 @@ class FilterOperationWithEdgeMove(AbstractOperation):
         except Exception as e:
             raise OperationFailed(f"Filter function failed: {e}")
         # get predecessor edges and filter by the ones in the filtered indices
-        predecessor_edges = partitions.predecessors.predecessor_edges(self, include_dependencies=False)
+        predecessor_edges = partitions.ancestors.predecessor_edges(self, include_dependencies=False)
         index_to_edges = _map_indices_to_edges(predecessor_edges, indices)
 
         if self.correspondence == Correspondence.ONE_TO_ONE:

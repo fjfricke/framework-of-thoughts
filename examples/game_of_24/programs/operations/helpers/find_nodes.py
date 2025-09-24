@@ -31,7 +31,7 @@ def find_nodes(current: AbstractOperation, partitions: GraphPartitions, find_las
     expression_nodekeys = []
     while True:
         if current.name.startswith("ValueOperation") or current.name.startswith("LastStepValueOperation"):
-            predecessor_edges = partitions.predecessors.predecessor_edges(current)
+            predecessor_edges = partitions.ancestors.predecessor_edges(current)
             from_node = predecessor_edges[0].from_node # parallel_evaluation_node
             to_node_key_to_from_node_key = {edge.to_node_key: edge.from_node_key for edge in predecessor_edges}
             left_nodes.append(from_node)
@@ -48,11 +48,11 @@ def find_nodes(current: AbstractOperation, partitions: GraphPartitions, find_las
             break
         
         if current.name.startswith("Propose") or current.name.startswith("LLMEvaluate"):  # Find only dependency edges
-            previous_dependency_nodes = partitions.predecessors.direct_predecessors(current, include_dependencies=True) - partitions.predecessors.direct_predecessors(current, include_dependencies=False)
+            previous_dependency_nodes = partitions.ancestors.direct_predecessors(current, include_dependencies=True) - partitions.ancestors.direct_predecessors(current, include_dependencies=False)
             if len(previous_dependency_nodes) == 0:  # we are at Start
-                current = list(partitions.predecessors.direct_predecessors(current, include_dependencies=False))[0]
+                current = list(partitions.ancestors.direct_predecessors(current, include_dependencies=False))[0]
             else:
                 current = list(previous_dependency_nodes)[0] # FindLastValueOperation or ValueOperation
         else:  # Find only non-dependency edges
-            current = list(partitions.predecessors.direct_predecessors(current, include_dependencies=False))[0]
+            current = list(partitions.ancestors.direct_predecessors(current, include_dependencies=False))[0]
     return FindLastValuesNodes(left_nodes=left_nodes, expression_nodes=expression_nodes, left_nodekeys=left_nodekeys, expression_nodekeys=expression_nodekeys)

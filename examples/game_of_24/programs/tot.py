@@ -118,7 +118,7 @@ def tot_controller(llm: AbstractLanguageModel, num_examples: int = 10, samples: 
 if __name__ == "__main__":
     import asyncio
     cache = CacheContainer.from_persistent_cache_file(Path(__file__).parent / "output" / "dataset_cache.pkl", load_as_virtual_persistent_cache=True, skip_on_file_not_found=True)
-    model = "gpt-5-mini"
+    model = "gpt-4o-mini"
     llm = OpenAIChat(model=model,
         cache=cache,
         request_price_per_token=OPENAI_PRICING[model]["request_price_per_token"],
