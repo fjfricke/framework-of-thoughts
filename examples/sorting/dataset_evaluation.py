@@ -1,6 +1,7 @@
 
 import logging
 from pathlib import Path
+import asyncio
 
 import numpy as np
 
@@ -21,7 +22,6 @@ from llm_graph_optimizer.optimizer.dataset_evaluator import DatasetEvaluator
 dataset_path = Path(__file__).parent / "dataset" / "sorting_128.csv"
 
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
-# logging.getLogger('llm_graph_optimizer.controller.controller').setLevel(logging.DEBUG)
 
 accuracy_score = ScoreParameter(
     name="mistakes",
@@ -37,10 +37,8 @@ def calculate_score(reasoning_state: ReasoningState, measurement: ProcessMeasure
     return {accuracy_score: reasoning_state["score"]}
 
 
-
 def run_dataset_evaluation(process: str, original_or_optimized: str, split: Split):
 
-    import asyncio
     cache = CacheContainer.from_persistent_cache_file(Path(__file__).parent / "output" / "dataset_cache.pkl", load_as_virtual_persistent_cache=True, skip_on_file_not_found=False)
     dataloader_factory = lambda: SortingDataloader(split, dataset_path, split=0.5, seed=42)  # noqa: F821
     model = "gpt-3.5-turbo"

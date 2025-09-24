@@ -1,4 +1,3 @@
-# Initialize the language model
 from llm_graph_optimizer.controller.controller import Controller
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
 from llm_graph_optimizer.language_models.abstract_language_model import AbstractLanguageModel
@@ -16,8 +15,6 @@ from llm_graph_optimizer.graph_of_operations.types import Edge, ManyToOne
 
 def tot_controller(llm: AbstractLanguageModel = OpenAIChat(model="gpt-4o"), num_branches: int = 20, improvement_levels: int = 2, max_concurrent: int = 5) -> Controller:
 
-    # llm = OpenAIChat(model="gpt-4o")
-    # Initialize the start node
     start_node = Start(
         input_types={"input_list": list[int], "expected_output": list[int]}
     )
@@ -56,12 +53,9 @@ def tot_controller(llm: AbstractLanguageModel = OpenAIChat(model="gpt-4o"), num_
         name="Filter"
     )
 
-    # Initialize the end node
     end_node = End(
         input_types={"score": int, "output": list[int], "expected_output": list[int]}
     )
-
-    # Initialize the graph of operations for IO
 
     tot_graph = GraphOfOperations()
     tot_graph.add_node(start_node)
@@ -96,7 +90,7 @@ def tot_controller(llm: AbstractLanguageModel = OpenAIChat(model="gpt-4o"), num_
     tot_graph.add_edge(Edge(start_node, end_node, "expected_output", "expected_output"))
 
     process_measurement = ProcessMeasurement(graph_of_operations=tot_graph)
-    # Initialize the controller
+
     tot_controller = Controller(
         graph_of_operations=tot_graph,
         scheduler=Scheduler.BFS,
