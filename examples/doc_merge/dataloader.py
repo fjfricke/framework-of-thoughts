@@ -9,7 +9,7 @@ class Split(Enum):
 
 
 class DocMergeDataloader(Iterator):
-    def __init__(self, execution_mode: Split, dataset_path: Path, split: float = 0.8, seed: int = 42):
+    def __init__(self, execution_mode: Split, dataset_path: Path, split: float = 0.5, seed: int = 42):
         self.dataset_path = dataset_path
         data = pd.read_csv(dataset_path)
         data = data.sample(frac=1, random_state=seed).reset_index(drop=True)

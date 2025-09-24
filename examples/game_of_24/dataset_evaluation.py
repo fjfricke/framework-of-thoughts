@@ -87,4 +87,6 @@ def run_dataset_evaluation(original_or_optimized: str, split: Split):
     print(scores)
 
 if __name__ == "__main__":
-    run_dataset_evaluation("original", Split.VALIDATION)
+    ORIGINAL_OR_OPTIMIZED = "original"
+    SPLIT = Split.VALIDATION
+    run_dataset_evaluation(ORIGINAL_OR_OPTIMIZED, SPLIT)

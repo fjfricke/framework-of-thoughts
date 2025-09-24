@@ -81,7 +81,6 @@ def game_of_24_study():
 
     study_measurement = StudyMeasurement(save_file_path=Path(__file__).parent / "output" / "game_of_24_study.pkl")
 
-    optuna.delete_study(study_name="game_of_24_study", storage="sqlite:///db.sqlite3")
     optuna_study = optuna.create_study(
         sampler=optuna.samplers.TPESampler(seed=42, constraints_func=constraints),
         direction="maximize",
