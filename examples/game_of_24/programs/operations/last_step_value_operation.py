@@ -11,15 +11,35 @@ from llm_graph_optimizer.operations.llm_operations.base_llm_operation import Bas
 
 
 class LastStepValueOperation(AbstractOperation):
+    """
+    This class represents an operation that evaluates the last step value in a reasoning process.
+    It utilizes a language model to generate values based on expressions and scores them.
+    """
+
     def __init__(self, samples: int, llm: AbstractLanguageModel, params: dict = None, name: str = None):
+        """
+        Initializes the LastStepValueOperation with the given parameters.
+
+        :param samples: Number of samples to evaluate.
+        :param llm: The language model used for evaluation.
+        :param params: Additional parameters for the operation.
+        :param name: Optional name for the operation.
+        """
         input_types = {"left": list[int], "expression": str}
-        output_types = Dynamic # {"left": list[int]}
+        output_types = Dynamic
         super().__init__(input_types, output_types, params, name)
         self.samples = samples
         self.llm = llm
 
     async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement | None]:
+        """
+        Executes the operation by evaluating the last step values and scoring them.
 
+        :param partitions: The graph partitions containing the nodes and edges.
+        :param input_reasoning_states: The input reasoning states for the operation.
+        :return: A tuple containing the updated reasoning state and any measurement.
+        """
+        # Sum up scores
         score_node = ScoreOperation(
             input_types={"values": ManyToOne[float]},
             output_type=float,
@@ -27,14 +47,17 @@ class LastStepValueOperation(AbstractOperation):
         )
         partitions.exclusive_descendants.add_node(score_node)
 
+        # Create an extract answer node
         extract_answer_node = ExtractAnswerOperation()
         partitions.exclusive_descendants.add_node(extract_answer_node)
         partitions.exclusive_descendants.add_dependency_edge(self, extract_answer_node)
 
+        # Find and connect expression nodes to the extract answer node
         left_and_expressions_nodes_and_nodekeys = find_nodes(self, partitions, FindLastValuesType.ALL).reverse()
         for i, (expression_node, expression_nodekey) in enumerate(zip(left_and_expressions_nodes_and_nodekeys.expression_nodes, left_and_expressions_nodes_and_nodekeys.expression_nodekeys)):
             partitions.add_edge(Edge(expression_node, extract_answer_node, expression_nodekey, "expressions", i))
         
+        # Create an LLM operation that evaluates the expressions in the last layer (sure or impossible)
         for i in range(self.samples):
             value_node = BaseLLMOperation(
                 llm=self.llm,
@@ -51,6 +74,7 @@ class LastStepValueOperation(AbstractOperation):
             partitions.exclusive_descendants.add_edge(Edge(extract_answer_node, value_node, "answer", "answer"))
             partitions.exclusive_descendants.add_edge(Edge(value_node, score_node, "value", "values"))
         
+        # Redirect the score to the final filter node
         descendants_edges = partitions.descendants.successor_edges(self)
         descendants_edges = [edge for edge in descendants_edges if edge.from_node_key == "score"]
         assert len(descendants_edges) == 1

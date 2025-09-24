@@ -9,6 +9,10 @@ from llm_graph_optimizer.operations.llm_operations.base_llm_operation import Bas
 
 
 class ValueOperation(AbstractOperation):
+    """
+    This operation creates samples branches to evaluate a single proposal and rewires its out-edges to the score node (descendant).
+
+    """
     def __init__(self, samples: int, llm: AbstractLanguageModel, params: dict = None, name: str = None):
         input_types = {"expression": str, "left": list[int]}
         output_types = Dynamic # {"left": list[int]}
