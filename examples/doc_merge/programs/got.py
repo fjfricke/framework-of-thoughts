@@ -42,7 +42,8 @@ def got_controller(
     num_improvements: int = 10,
     max_concurrent: int = 1,
     use_dspy: bool = False,
-    save_to_cache_after_execution: CacheContainer = None
+    save_to_cache_after_execution: CacheContainer = None,
+    optimized_improve_prompter = None
 ) -> Controller:
     
     start_node = Start(
@@ -79,7 +80,7 @@ def got_controller(
         if not use_dspy:
             return BaseLLMOperation(
                 llm=llm_gen,
-                prompter=improve_prompt,
+                prompter=improve_prompt if not optimized_improve_prompter else optimized_improve_prompter,
                 parser=improve_parser,
                 cache_seed=cache_seed,
                 input_types={"summaries": ManyToOne[str], "docs": list[str]},  # only one summary will be passed
@@ -96,7 +97,6 @@ def got_controller(
             return SharedPromptLLMOperation(
                 group_id="improve",
                 llm=llm_gen,
-                prompter=improve_prompt,
                 parser=improve_parser,
                 signature=ImproveSignature,
                 input_types={"summaries": ManyToOne[str], "docs": list[str]},  # only one summary will be passed
