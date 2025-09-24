@@ -26,7 +26,6 @@ class Controller:
         """
         self.graph_of_operations = graph_of_operations
         self.scheduler = scheduler
-        # self.graph_over_time = []
         self.max_concurrent = max_concurrent
         self.logger = logging.getLogger(__name__)
         self.process_measurement = process_measurement
@@ -161,6 +160,7 @@ class Controller:
         for _ in range(self.max_concurrent):
             await operation_queue.put(None)
 
+        # Cancel workers
         for worker_task in workers:
             try:
                 worker_task.cancel()
@@ -168,7 +168,6 @@ class Controller:
             except asyncio.CancelledError:
                 self.logger.debug("Worker task cancelled.")
 
-        # Cancel workers
         for worker_task in workers:
             worker_task.cancel()
 
