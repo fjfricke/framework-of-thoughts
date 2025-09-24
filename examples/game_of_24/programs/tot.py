@@ -48,7 +48,6 @@ def tot_controller(llm: AbstractLanguageModel, num_examples: int = 10, samples: 
     find_last_values_op = lambda i: FindLastValuesOperation(name=f"FindLastValuesOperation_{i}", params={"type": FindLastValuesType.ONLY_ONE})
 
     end_node = End(
-        # input_types={"lefts": list[list[int]], "expressions": list[str]}
         input_types={"score": float, "answer": str}
     )
 
@@ -133,5 +132,4 @@ if __name__ == "__main__":
     print(result)
     print(measurement)
     tot_controller.graph_of_operations.snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
-    # tot_controller.graph_of_operations.snapshot.save_graphml(Path(__file__).parent / "output" / "tot_graph.graphml", include_values=True)
     cache.save_persistent_cache()
