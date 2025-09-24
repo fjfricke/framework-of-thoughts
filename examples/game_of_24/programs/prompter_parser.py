@@ -1,3 +1,6 @@
+from llm_graph_optimizer.operations.helpers.exceptions import OperationFailed
+
+
 def io_prompt(input_list: list[int]):
     return f"""Use numbers and basic arithmetic operations (+ - * /) to obtain 24.
 Input: 4 4 6 8
@@ -84,7 +87,7 @@ def propose_parser(response: str):
         if left_match:
             left_str = left_match.group(1)
             try:
-                left = [int(x) for x in left_str.split()]
+                left = [int(x) for x in re.split(r'[,\s\[\]]+', left_str) if x]
             except ValueError:
                 # skip lines with malformed left values
                 continue
@@ -106,7 +109,10 @@ def propose_parser(response: str):
         if expr and isinstance(left, list):
             expressions.append(expr)
             lefts.append(left)
-
+    if expressions == []:
+        raise OperationFailed(f"Failed to parse expressions from response: {response}")
+    if len(expressions) != len(lefts):
+        raise OperationFailed(f"Number of expressions and lefts do not match: {len(expressions)} != {len(lefts)}")
     return {"expressions": expressions, "lefts": lefts}
 
 def value_prompt(left: list[int]):

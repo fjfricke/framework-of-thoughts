@@ -3,14 +3,18 @@ from llm_graph_optimizer.graph_of_operations.types import Dynamic, ReasoningStat
 from llm_graph_optimizer.measurement.measurement import Measurement
 from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartitions
 from examples.game_of_24.programs.operations.helpers.find_nodes import FindLastValuesType, find_nodes
+from llm_graph_optimizer.operations.helpers.exceptions import OperationFailed
 
 class FindLastValuesOperation(AbstractOperation):
     def __init__(self, params: dict = None, name: str = None):
-        input_types = {"score": float}
+        input_types = {"score": float | None}
         output_types = Dynamic # {"expressions": list[str], "lefts": list[list[int]]}
         super().__init__(input_types, output_types, params, name)
 
     async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement | None]:
+
+        if input_reasoning_states["score"] is None:
+            raise OperationFailed("Score is None")
 
         if self.params.get("type") not in [FindLastValuesType.ONLY_ONE, FindLastValuesType.ALL]:
             raise ValueError(f"Invalid find last values type: {self.params.get('type')}")

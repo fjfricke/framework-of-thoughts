@@ -9,7 +9,7 @@ from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
 
 
 class ParallelEvaluationOperation(AbstractOperation):
-    def __init__(self, llm: AbstractLanguageModel, samples: int, params: dict = None, name: str = None):
+    def __init__(self, llm: AbstractLanguageModel, samples: int, branch_index: int, params: dict = None, name: str = None):
         """
         Params:
             value_operation_type: ValueOperation or LastStepValueOperation
@@ -19,6 +19,7 @@ class ParallelEvaluationOperation(AbstractOperation):
         super().__init__(input_types, output_types, params, name)
         self.llm = llm
         self.samples = samples
+        self.branch_index = branch_index
 
     async def _execute(self, partitions: GraphPartitions, input_reasoning_states: ReasoningState) -> tuple[ReasoningState, Measurement | None]:
 
@@ -40,22 +41,8 @@ class ParallelEvaluationOperation(AbstractOperation):
             partitions.exclusive_descendants.add_node(value_node)
             partitions.exclusive_descendants.add_edge(Edge(self, value_node, f"left_{i}", "left"))
             partitions.exclusive_descendants.add_edge(Edge(self, value_node, f"expression_{i}", "expression"))
-            # if self.params.get("value_operation_type") == ValueOperation:
-            #     value_node = ValueOperation(samples=self.samples, llm=self.llm, name=f"ValueOperation_{i}")
-            #     value_nodes.append(value_node)
-            #     partitions.exclusive_descendants.add_node(value_node)
-            #     partitions.exclusive_descendants.add_edge(Edge(self, value_node, f"left_{i}", "left"))
-            #     partitions.exclusive_descendants.add_edge(Edge(self, value_node, f"expression_{i}", "expression"))
-            # elif self.params.get("value_operation_type") == LastStepValueOperation:
-            #     value_node = LastStepValueOperation(samples=self.samples, llm=self.llm, name=f"LastStepValueOperation_{i}")
-            #     value_nodes.append(value_node)
-            #     partitions.exclusive_descendants.add_node(value_node)
-            #     partitions.exclusive_descendants.add_dependency_edge(self, value_node)
-            # else:
-            #     raise ValueError(f"Invalid value operation type: {self.params.get('value_operation_type')}")
 
-
-        partitions.move_start_node_and_duplicate_edges(current_edge=descendants_edges[0], new_from_nodes=value_nodes, new_from_node_keys=["score"] * len(value_nodes), orders=list(range(len(value_nodes))))
+        partitions.move_start_node_and_duplicate_edges(current_edge=descendants_edges[0], new_from_nodes=value_nodes, new_from_node_keys=["score"] * len(value_nodes), orders=list(range(self.branch_index*1000, self.branch_index*1000+len(value_nodes))))
 
 
         output_reasoning_states = {}

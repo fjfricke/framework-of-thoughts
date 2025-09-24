@@ -1,6 +1,5 @@
 from enum import Enum
 from dataclasses import dataclass
-from examples.game_of_24.programs.operations.value_operation import ValueOperation
 from llm_graph_optimizer.graph_of_operations.graph_partitions import GraphPartitions
 from llm_graph_optimizer.graph_of_operations.types import NodeKey
 from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
@@ -31,7 +30,7 @@ def find_nodes(current: AbstractOperation, partitions: GraphPartitions, find_las
     left_nodekeys = []
     expression_nodekeys = []
     while True:
-        if isinstance(current, ValueOperation) or current.name.startswith("LastStepValueOperation"):
+        if current.name.startswith("ValueOperation") or current.name.startswith("LastStepValueOperation"):
             predecessor_edges = partitions.predecessors.predecessor_edges(current)
             from_node = predecessor_edges[0].from_node # parallel_evaluation_node
             to_node_key_to_from_node_key = {edge.to_node_key: edge.from_node_key for edge in predecessor_edges}
@@ -48,7 +47,7 @@ def find_nodes(current: AbstractOperation, partitions: GraphPartitions, find_las
             left_nodekeys.append("input_list")
             break
         
-        if current.name == "Propose" or current.name.startswith("LLMEvaluate"):  # Find only dependency edges
+        if current.name.startswith("Propose") or current.name.startswith("LLMEvaluate"):  # Find only dependency edges
             previous_dependency_nodes = partitions.predecessors.direct_predecessors(current, include_dependencies=True) - partitions.predecessors.direct_predecessors(current, include_dependencies=False)
             if len(previous_dependency_nodes) == 0:  # we are at Start
                 current = list(partitions.predecessors.direct_predecessors(current, include_dependencies=False))[0]
