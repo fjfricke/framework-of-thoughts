@@ -1,11 +1,9 @@
 import logging
-import os
 from pathlib import Path
-import dspy
 
 from examples.hotpotqa.programs.operations.reasoning.child_aggregate import ChildAggregateReasoning
 from examples.hotpotqa.programs.operations.reasoning.closed_book import ClosedBookReasoning
-from examples.hotpotqa.programs.operations.reasoning.filter import filter_function, filter_function_with_scaling_and_shifting
+from examples.hotpotqa.programs.operations.reasoning.filter import filter_function
 from examples.hotpotqa.programs.operations.reasoning.open_book import OpenBookReasoning, get_retriever
 from examples.hotpotqa.programs.operations.unterstanding.understanding import UnderstandingGraphUpdating
 from examples.hotpotqa.programs.operations.unterstanding.prompter_parser import understanding_parser, understanding_prompt_hotpotqa, understanding_prompt_musique
@@ -27,14 +25,13 @@ from llm_graph_optimizer.measurement.process_measurement import ProcessMeasureme
 from llm_graph_optimizer.operations.base_operations.end import End
 from llm_graph_optimizer.operations.base_operations.filter_operation import FilterOperation
 from llm_graph_optimizer.operations.base_operations.start import Start
-from llm_graph_optimizer.operations.llm_operations.dspy.shared_prompt_llm_operation import SharedPromptLLMOperation
 from llm_graph_optimizer.operations.llm_operations.llm_operation_with_logprobs import LLMOperationWithLogprobs
 from llm_graph_optimizer.schedulers.schedulers import Scheduler
 
 retriever = get_retriever(Path().resolve() / "examples" / "hotpotqa" / "dataset" / "HotpotQA" / "wikipedia_index_bm25")
 cache = CacheContainer.from_persistent_cache_file(Path(__file__).parent.parent / "output" / "cache.pkl", skip_on_file_not_found=True, load_as_virtual_persistent_cache=True)
 
-def probtree_controller(llm: OpenAIChatWithLogprobs, n_retrieved_docs: int = 5, scaling_factors: list[float] = None, shifting_factors: list[float] = None, max_concurrent: int = 1, use_dspy: bool = False, dataset: str = "hotpotqa", hqdt_prompter = None) -> Controller:
+def probtree_controller(llm: OpenAIChatWithLogprobs, max_concurrent: int = 1, dataset: str = "hotpotqa") -> Controller:
     """
     This function creates a controller for the ProbTree algorithm.
     It takes a language model, a number of retrieved documents, and optional scaling and shifting factors. Do not create the LLM inside the controller generator function. It needs to be shared across controllers to use the same shared cache.
@@ -42,10 +39,7 @@ def probtree_controller(llm: OpenAIChatWithLogprobs, n_retrieved_docs: int = 5, 
     """
 
     if dataset == "hotpotqa":
-        if hqdt_prompter is None:
-            understanding_prompter = understanding_prompt_hotpotqa
-        else:
-            understanding_prompter = hqdt_prompter
+        understanding_prompter = understanding_prompt_hotpotqa
         open_book_prompter = open_book_prompt_hotpotqa
         closed_book_prompter = closed_book_prompt_hotpotqa
     elif dataset == "musique":
@@ -65,36 +59,19 @@ def probtree_controller(llm: OpenAIChatWithLogprobs, n_retrieved_docs: int = 5, 
         input_types={"answer": str, "decomposition_score": float},
     )
 
-    if not use_dspy:
-        generate_hqdt_node = LLMOperationWithLogprobs(
-            llm=llm,
-            prompter=understanding_prompter,
-            parser=understanding_parser,
-            input_types={"question": str},
-            output_types={"hqdt": dict},
+    generate_hqdt_node = LLMOperationWithLogprobs(
+        llm=llm,
+        prompter=understanding_prompter,
+        parser=understanding_parser,
+        input_types={"question": str},
+        output_types={"hqdt": dict},
         name="GenerateTree"
     )
-    else:
-        class GenerateTreeSignature(dspy.Signature):
-            """Generate a tree of atomic subquestions from a multi-hop question."""
-            question: str = dspy.InputField(description="The multi-hop question to decompose.")
-            hqdt: dict = dspy.OutputField(description='The tree of atomic subquestions. The format looks like this: {"An actor in Nowhere to Run is a national of a European country. That country\'s King Albert I lived during a major war that Italy joined in what year?": ["Albert I of the country which has the actor in Nowhere to Run lived during which war?", "When did Italy join #1?"], "Albert I of the country which has the actor in Nowhere to Run lived during which war?": ["Tell me the country which has the actor in Nowhere to Run", "Albert I of #1 lived during which war?"], "Tell me the country which has the actor in Nowhere to Run": ["Nowhere to Run\'s cast member is whom?", "What is the country of #1?"]}.')
-        
-        generate_hqdt_node = SharedPromptLLMOperation(
-            operation_type=LLMOperationWithLogprobs,
-            group_id="generate_hqdt",
-            llm=llm,
-            parser=understanding_parser,
-            signature=GenerateTreeSignature,
-            input_types={"question": str},
-            output_types={"hqdt": dict},
-            name="GenerateTree"
-        )
 
     open_book_op = lambda: OpenBookReasoning(
         llm=llm,
         retriever=retriever,
-        k=n_retrieved_docs,
+        k=5,
         name="OB",
         prompter=open_book_prompter
     )
@@ -103,11 +80,7 @@ def probtree_controller(llm: OpenAIChatWithLogprobs, n_retrieved_docs: int = 5, 
 
     child_aggregate_op = lambda: ChildAggregateReasoning(llm=llm, name="CA")
 
-    if scaling_factors is None or shifting_factors is None:
-        _filter_function = filter_function
-    else:
-        _filter_function = lambda answers, decomposition_scores: filter_function_with_scaling_and_shifting(answers, decomposition_scores, scaling_factors, shifting_factors)
-    filter_op = lambda: FilterOperation(output_types={"answer": str, "decomposition_score": float}, input_types={"answers": ManyToOne[str], "decomposition_scores": ManyToOne[float]}, filter_function=_filter_function, name="Filter")
+    filter_op = lambda: FilterOperation(output_types={"answer": str, "decomposition_score": float}, input_types={"answers": ManyToOne[str], "decomposition_scores": ManyToOne[float]}, filter_function=filter_function, name="Filter")
 
     understanding_op = lambda: UnderstandingGraphUpdating(
         open_book_op=open_book_op,
@@ -148,18 +121,21 @@ def probtree_controller(llm: OpenAIChatWithLogprobs, n_retrieved_docs: int = 5, 
     return controller
 
 if __name__ == "__main__":
+    import asyncio
+
     logging.getLogger().setLevel(logging.CRITICAL)
     logging.getLogger('llm_graph_optimizer.controller.controller').setLevel(logging.DEBUG)
-    model = "gpt-4.1-mini"
+
+    model = "gpt-4o-mini"
     llm = OpenAIChatWithLogprobs(model=model, config=Config(temperature=0.0), request_price_per_token=OPENAI_PRICING[model]["request_price_per_token"], response_price_per_token=OPENAI_PRICING[model]["response_price_per_token"])
     controller = probtree_controller(llm=llm)
-    import asyncio
+
     controller.graph_of_operations.snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True)  # Visualizes the operation graph before execution
+
     output, process_measurement = asyncio.run(controller.execute(input={"question": "Are both Superdrag and Collective Soul rock bands?"}, debug_params={"raise_on_operation_failure": True, "visualize_intermediate_graphs": True}))
-    # [snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True) for snapshot in controller.intermediate_snapshots.graphs]  # Visualizes all intermediate execution graphs. Creates a lot of browser windows!
+
     snapshot_graph = controller.graph_of_operations.snapshot
     snapshot_graph.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
-    save_path = Path(os.getcwd()) / "examples" / "hotpotqa" / "output"
-    snapshot_graph.save(save_path / "probtree_debug.pkl")
+
     print(output)
     print(process_measurement)

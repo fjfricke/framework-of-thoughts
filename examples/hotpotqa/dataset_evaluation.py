@@ -39,7 +39,6 @@ recall_score = ScoreParameter(
 
 parameters = DatasetEvaluatorParameters(
     min_runs=10,  # Should be > 10 when using the early stopping criterion from the acceptable_ci_width parameter
-    # max_runs=950,  # Can be set for an additional early stopping criterion, used for validation in the paper
     score_parameters=[accuracy_score, f1_score, precision_score, recall_score]
 )
 
@@ -56,7 +55,7 @@ def calculate_score(reasoning_state: ReasoningState | None, measurement: Process
         accuracy = 0.0
     return {accuracy_score: accuracy, f1_score: f1, precision_score: precision, recall_score: recall}
 
-def test_dataset_evaluation(dataset: str = "hotpotqa", hqdt_prompter: str = None):
+def test_dataset_evaluation(dataset: str = "hotpotqa"):
     import asyncio
 
     if dataset == "hotpotqa":
@@ -69,7 +68,7 @@ def test_dataset_evaluation(dataset: str = "hotpotqa", hqdt_prompter: str = None
 
     dataloader = lambda: dataloader_factory_with_split(Split.VALIDATION)
     cache = CacheContainer.from_persistent_cache_file(Path(__file__).parent / "output" / "cache.pkl", skip_on_file_not_found=True, load_as_virtual_persistent_cache=True)
-    model = "gpt-4.1-mini"
+    model = "gpt-4o-mini"
     llm = OpenAIChatWithLogprobs(
         model=model,
         config=Config(temperature=0.0),
@@ -81,10 +80,7 @@ def test_dataset_evaluation(dataset: str = "hotpotqa", hqdt_prompter: str = None
             tpm = OPENAI_PRICING[model]["TPM"]*2
         )
     )
-    if hqdt_prompter is None:
-        controller_factory = lambda: probtree_controller(llm, n_retrieved_docs=5, max_concurrent=1, dataset=dataset)
-    else:
-        controller_factory = lambda: probtree_controller(llm, n_retrieved_docs=5, max_concurrent=1, dataset=dataset, hqdt_prompter=hqdt_prompter)
+    controller_factory = lambda: probtree_controller(llm, max_concurrent=1, dataset=dataset)
 
     dataset_evaluator = DatasetEvaluator(
         controller_factory=controller_factory,
@@ -100,9 +96,4 @@ def test_dataset_evaluation(dataset: str = "hotpotqa", hqdt_prompter: str = None
     cache.save_persistent_cache(Path(__file__).parent / "output" / "cache.pkl")
     print(scores)
 if __name__ == "__main__":
-
-    def optimized_hqdt_prompt(question: str) -> dict[str, str]:
-        instructions = """"Given a multi-hop question that involves multiple reasoning steps, your task is to systematically decompose it into a complete hierarchical tree of simpler, atomic subquestions. Each node in the tree should be a subquestion that isolates a single reasoning step, ensuring that each one is independently answerable and collectively they help solve the original question via step-by-step reasoning. Represent this decomposition as a well-structured JSON object where each key is a complex or intermediate question and its corresponding value is a list of direct atomic subquestions needed to answer it. To show dependencies across subquestions, use consistent referencing (e.g., \"#1\" for the first subquestion) whenever one subquestion relies on an earlier one. The decomposition should continue recursively until every path ends in foundational, fact-based atomic questions that do not require further breakdown. Your resulting JSON tree must explicitly capture this layered structure prioritizing clarity, logical flow, and completeness for transparent multi-hop reasoning."""
-        return [{"role": "system", "content": instructions}, {"role": "user", "content": question}]
-    
-    test_dataset_evaluation(dataset="hotpotqa", hqdt_prompter=optimized_hqdt_prompt)  # hotpotqa or musique
+    test_dataset_evaluation(dataset="hotpotqa")  # hotpotqa or musique
