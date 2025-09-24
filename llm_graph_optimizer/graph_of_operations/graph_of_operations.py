@@ -8,6 +8,9 @@ from .graph_partitions import Descendants, ExclusiveDescendants, GraphPartitions
 if TYPE_CHECKING:
     from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class GraphOfOperations(BaseGraph):
     """
@@ -114,40 +117,66 @@ class GraphOfOperations(BaseGraph):
 
     def get_input_reasoning_states(self, node: "AbstractOperation") -> dict[NodeKey, any]:
         """
-        Get the input reasoning states for a specific node.
+        Build the input reasoning states for `node`.
 
-        :param node: The node to retrieve input reasoning states for.
-        :return: A dictionary of an input reasoning state.
+        For ManyToOne inputs:
+        - collect values from all predecessors for the same `to_node_key`
+        - globally sort them by `order`
+        - allow duplicate orders (all values with the same order go into the list, order among them is arbitrary but logged)
         """
         if node == self.start_node:
             return node.input_reasoning_states
+
         predecessors = self._graph.predecessors(node)
-        input_reasoning_states = {}
-        for key, expected_type in node.input_types.items():
-            if get_origin(expected_type) == ManyToOne:
-                input_reasoning_states[key] = []
+        input_reasoning_states: dict[NodeKey, any] = {}
+        buckets: dict[NodeKey, list[tuple[int, any]]] = {}
+        single_values: dict[NodeKey, any] = {}
+
         for predecessor in predecessors:
             if not predecessor.node_state.is_finished:
                 raise ValueError(f"Predecessor {predecessor} is not finished")
+
             edge_data = self._graph.get_edge_data(predecessor, node)
-            edge_data_values_sorted = sorted(edge_data.values(), key=lambda x: x.get("order", -1))
-            for edge in edge_data_values_sorted:
-                if "to_node_key" in edge:
-                    to_node_key = edge["to_node_key"]
-                    if to_node_key is not None:
-                        value = edge.get("value") if not predecessor.node_state == NodeState.FAILED else StateSetFailed
-                        try:
-                            check_type(value, OneToMany)
-                            value = value[edge["idx"]]
-                        except TypeCheckError:
-                            pass
-                        # Check if the type is ManyToOne or a parameterized version of it
-                        if get_origin(node.input_types[to_node_key]) == ManyToOne:
-                            # Aggregate values into a list
-                            input_reasoning_states[to_node_key].append(value)
-                        else:
-                            # Assign the value directly for non-ManyToOne types
-                            input_reasoning_states[to_node_key] = value
+            if not edge_data:
+                continue
+
+            for e in edge_data.values():
+                to_node_key = e.get("to_node_key")
+                if to_node_key is None:
+                    continue
+
+                value = e.get("value") if predecessor.node_state != NodeState.FAILED else StateSetFailed
+                try:
+                    check_type(value, OneToMany)
+                    value = value[e["idx"]]
+                except TypeCheckError:
+                    pass
+
+                expected_type = node.input_types[to_node_key]
+                if get_origin(expected_type) == ManyToOne:
+                    order = e.get("order", -1)
+                    buckets.setdefault(to_node_key, []).append((order, value))
+                else:
+                    single_values[to_node_key] = value
+
+        for key, expected_type in node.input_types.items():
+            if get_origin(expected_type) == ManyToOne:
+                pairs = buckets.get(key, [])
+                if not pairs:
+                    input_reasoning_states[key] = []
+                    continue
+
+                pairs.sort(key=lambda p: p[0])
+                orders = [o for o, _ in pairs]
+                if len(set(orders)) != len(orders):
+                    logger.warning(
+                        f"Duplicate 'order' values detected for ManyToOne key={key}: {orders}"
+                    )
+
+                input_reasoning_states[key] = [v for _, v in pairs]
+            else:
+                input_reasoning_states[key] = single_values.get(key, None)
+
         return input_reasoning_states
     
     def partitions(self, node: "AbstractOperation") -> GraphPartitions:
