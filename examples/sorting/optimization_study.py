@@ -23,14 +23,14 @@ logging.getLogger().setLevel(logging.ERROR)
 
 dataset_path = Path(__file__).parent / "dataset" / "sorting_128.csv"
 
-mistakes = ScoreParameter(
+mistakes_parameter = ScoreParameter(
     name="mistakes",
     confidence_interval_width=0.95,
     # acceptable_ci_width=0.1
 )
 
-mistakes_penalized = ScoreParameter(
-    name="mistakes_penalized",
+cost_parameter = ScoreParameter(
+    name="cost",
     confidence_interval_width=0.95,
     # acceptable_ci_width=0.1
 )
@@ -38,37 +38,23 @@ mistakes_penalized = ScoreParameter(
 parameters = DatasetEvaluatorParameters(
     min_runs=10,
     # max_runs=10,
-    score_parameters=[mistakes, mistakes_penalized]
+    score_parameters=[mistakes_parameter, cost_parameter]
 )
 
 def calculate_score(reasoning_state: ReasoningState, measurement: ProcessMeasurement, ground_truth: list[int]) -> dict[ScoreParameter, float]:
-    if reasoning_state is None or "score" not in reasoning_state:
-        return {mistakes: 128, mistakes_penalized: 128}
 
-    base_score = reasoning_state["score"]
     cost = measurement.total_sequential_cost().with_process_cache.total_cost
 
-    # Parameters for exponential penalty
-    cost_start = 0.05
-    cost_end = 0.1
-    max_penalty = 2 * base_score
-    B = 60  # Steepness factor
+    if reasoning_state is None or "score" not in reasoning_state:
+        return {mistakes_parameter: 128, cost_parameter: cost}
 
-    if cost <= cost_start:
-        penalty = 0
-    else:
-        shifted_cost = cost - cost_start
-        cost_range = cost_end - cost_start
+    base_score = reasoning_state["score"]
 
-        # Compute A to normalize the curve to reach max_penalty at cost_end
-        A = max_penalty / (np.exp(B * cost_range) - 1)
-        penalty = A * (np.exp(B * shifted_cost) - 1)
-        penalty = min(penalty, max_penalty)
-
-    total_score = min(base_score + penalty, 128)
-    return {mistakes: base_score, mistakes_penalized: total_score}
+    return {mistakes_parameter: base_score, cost_parameter: cost}
 
 def sorting_study(process: str):
+
+    COST_BOUNDARY = 0.050 if process == "got" else 0.159  # boundary condition cost based on mean process cost for the original run
 
     dataloader_factory = lambda: SortingDataloader(Split.TRAIN, dataset_path, split=0.5, seed=42)
 
@@ -93,25 +79,29 @@ def sorting_study(process: str):
             controller_factory = lambda: tot_controller(llm=llm, num_branches=num_branches, improvement_levels=improvement_levels, max_concurrent=1)
         elif process == "got":
             num_sort_branches = trial.suggest_int("num_sort_branches", 1, 10)
-            num_merge_branches = trial.suggest_int("num_merge_branches", 5, 15)
+            num_merge_branches = trial.suggest_int("num_merge_branches", 5, 25)
             global_improvement_rounds = trial.suggest_int("global_improvement_rounds", 1, 3)
             controller_factory = lambda: got_controller(llm=llm, num_sort_branches=num_sort_branches, num_merge_branches=num_merge_branches, global_improvement_rounds=global_improvement_rounds, max_concurrent=1)
         return controller_factory
+
+    def constraints(trial: optuna.Trial):
+        cost_attr = trial.user_attrs.get(cost_parameter.name, 0)
+        return [cost_attr - COST_BOUNDARY]
     
     study_measurement = StudyMeasurement(save_file_path=Path(__file__).parent / "output" / f"{process}_sorting_study.pkl")
 
     # optuna.delete_study(study_name=f"sorting_study_{process}_2", storage="sqlite:///db.sqlite3")
     optuna_study = optuna.create_study(
-        sampler=optuna.samplers.TPESampler(seed=42),
+        sampler=optuna.samplers.TPESampler(seed=42, constraints_func=constraints),
         direction="minimize",
         storage="sqlite:///db.sqlite3",
-        study_name=f"sorting_study_{process}_2",
+        study_name=f"sorting_study_{process}",
         load_if_exists=True
     )
 
     study = Study(
         optuna_study=optuna_study,
-        metrics=[mistakes_penalized],
+        metrics=[mistakes_parameter],
         dataset_evaluator=DatasetEvaluator(
             calculate_score=calculate_score,
             dataloader_factory=dataloader_factory,
@@ -136,5 +126,5 @@ def sorting_study(process: str):
     )
 
 if __name__ == "__main__":
-    # sorting_study("tot")
     sorting_study("got")
+    # sorting_study("tot")
