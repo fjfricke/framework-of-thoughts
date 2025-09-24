@@ -190,8 +190,6 @@ class SnapshotGraph():
             edge_data = edge[3]
             edge_data.clear()
 
-            # edge_data['color'] = 'blue'
-
             # Set the `title` attribute based on the original edge data
             if show_keys and not show_values:
                 if "from_node_key" in original_edge_data and "to_node_key" in original_edge_data:
