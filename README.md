@@ -31,7 +31,7 @@ The project provides several optional features that can be installed using `poet
 
 - **examples**: Includes dependencies needed to run the examples in the `examples` directory. If you want to replicate the studies, please also install the `optimizer` extra.
 - **dataset**: Adds support to run experiments on entire datasets.
-- **optimizer**: `dataset` + installs `optuna` and `optuna-dashboard` for hyperparameter optimization.
+- **optimizer**: `dataset` + installs `optuna` and `optuna-dashboard` for hyperparameter optimization, as well as `dspy`.
 - **dev**: Installs development tools like `ruff` and `pre-commit` for linting and code formatting if you want to contribute to the project. :)
 
 ### Installing Extras
