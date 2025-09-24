@@ -11,6 +11,7 @@ from .helpers.language_model_config import Config, LLMResponseType
 class AbstractLanguageModel(ABC):
     """
     Abstract base class that defines the interface for all language models. Inherit from this to create a new LLM.
+    The new language model class should implement the `_raw_query` and `_raw_chat_query` methods.
     """
 
     @abstractmethod
@@ -57,7 +58,7 @@ class AbstractLanguageModel(ABC):
     @abstractmethod
     async def _raw_query(self, prompt: str) -> tuple[LLMOutput, Measurement]:
         """
-        Query the language model with a prompt. Needs to be implemented by the LLM.
+        Query the language model with a single string as prompt. Needs to be implemented by the LLM.
 
         Args:
             prompt (str): The input prompt for the language model.
@@ -70,7 +71,7 @@ class AbstractLanguageModel(ABC):
     @abstractmethod
     async def _raw_chat_query(self, prompt: list[dict[str, str]]) -> tuple[LLMOutput, Measurement]:
         """
-        Query the language model with a prompt. Needs to be implemented by the LLM.
+        Query the language model with a list of dicts as prompt. Needs to be implemented by the LLM.
 
         Args:
             prompt (list[dict[str, str]]): The input chat prompts with role and content for the language model.
@@ -82,7 +83,7 @@ class AbstractLanguageModel(ABC):
 
     async def query(self, prompt: str | list[dict[str, str]], use_cache: bool = True, cache_seed: CacheSeed = None) -> tuple[LLMOutput, MeasurementsWithCache]:
         """
-        Query the language model with caching.
+        Queries the language model. It utilizes the cache if a matching entry is found. Also returns a measurement object with updated cost and time measurements.
 
         Args:
             prompt (str): The input prompt for the language model.
@@ -90,7 +91,7 @@ class AbstractLanguageModel(ABC):
             cache_seed (CacheSeed, optional): Extra identifier for cache lookup. Use when the same prompt should generate different answers in the graph. Defaults to None.
 
         Returns:
-            tuple[LLMOutput, Measurement]: The output from the language model and associated measurement, including measurements.
+            tuple[LLMOutput, Measurement]: The output from the language model and associated measurement.
         """
 
         # Check if the prompt is in the cache

@@ -64,11 +64,12 @@ class FilterOperationWithEdgeMove(AbstractOperation):
 
     This operation applies a filter function to the input reasoning states
     and moves the start node of the edges to the top reasoning states. The filter function
-    is expected to return the indices of the top reasoning states based
-    on a specified criterion (e.g., F1 scores).
+    is expected to return the indices of the top reasoning states.
+
+    Note that all predecessor edges have to have a `order` attribute set.
 
     Wiring behavior is controlled by `Correspondence`:
-    - ONE_TO_ONE: Each successor edge (per `order`) is redirected to exactly one selected predecessor
+    - ONE_TO_ONE: Each successor edge (per `order` if given) is redirected to exactly one selected predecessor
       with matching `from_node_key`.
     - MANY_TO_ONE: Successor edges are duplicated so that all selected predecessors for the same
       `from_node_key` connect to a single successor input that expects `ManyToOne`.

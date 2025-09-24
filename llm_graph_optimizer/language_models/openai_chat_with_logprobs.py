@@ -40,7 +40,7 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
         self.response_price_per_token = response_price_per_token
 
         transport = TimingAsyncHTTPTransport()
-        http_client = AsyncClient(transport=transport, timeout=20)
+        http_client = AsyncClient(transport=transport, timeout=90)
         self._client = AsyncOpenAI(api_key=api_key, http_client=http_client)
         self._openai_rate_limiter = openai_rate_limiter
     @property
@@ -61,7 +61,7 @@ class OpenAIChatWithLogprobs(AbstractLanguageModel):
     @backoff.on_exception(backoff.expo, OpenAIError, max_time=120, max_tries=6, jitter=lambda x: max(x, 10))
     async def _raw_chat_query(self, prompt: list[dict[str, str]]) -> tuple[list[str, float], Measurement | None]:
         """
-        Query the OpenAI Legacy Completions API and return metadata.
+        Query the OpenAI Chat Completions API and return metadata.
 
         :param prompt: The input prompt for the model.
         """

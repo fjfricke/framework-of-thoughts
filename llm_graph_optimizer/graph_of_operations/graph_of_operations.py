@@ -39,7 +39,6 @@ class GraphOfOperations(BaseGraph):
         """
         Set nodes with all predecessors finished to a processable state.
         """
-        # set nodes with all predecessors finished to processable
         for node in self._graph.nodes:
             if all(predecessor.node_state in [NodeState.DONE, NodeState.FAILED] for predecessor in self._graph.predecessors(node)):
                 if node.node_state == NodeState.WAITING:

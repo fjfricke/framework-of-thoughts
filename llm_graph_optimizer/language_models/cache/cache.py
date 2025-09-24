@@ -14,7 +14,7 @@ class CacheCategory(Enum):
     Enum representing different categories of cache:
     PROCESS: Cache for process-level results.
     PERSISTENT: Cache for persistent results.
-    VIRTUAL_PERSISTENT: Used to "mimik" the behaviour of having no cache. Used for measurement purposes when restarting a study.
+    VIRTUAL_PERSISTENT: Used to "mimik" the behaviour of having no cache. Used for measurement purposes when restarting a study to minimize the actual costs when running the study.
     """
     PROCESS = "process"
     PERSISTENT = "persistent"
