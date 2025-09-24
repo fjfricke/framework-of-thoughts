@@ -7,7 +7,7 @@ The dataset is provided in the `dataset` folder. You can find 3 different datase
 - `sorting_0128.csv`: a dataset of len(digits) = 128 sorting problems
 - `sorting_0512.csv`: a dataset of len(digits) = 512 sorting problems
 
-They are copied from the [graph-of-thoughts](https://github.com/spcl/graph-of-thoughts) repository (© 2023 ETH Zurich). For more details, refer to the [license file](dataset/license.txt).
+They are copied from the [graph-of-thoughts](https://github.com/spcl/graph-of-thoughts) repository (© 2023 ETH Zurich). For more details, refer to the [license file](dataset/LICENSE.txt).
 
 ## Operations
 

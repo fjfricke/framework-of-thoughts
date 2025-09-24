@@ -3,7 +3,7 @@
 ## Setup
 
 The dataset is provided in the `dataset` folder.
-They are copied from the [graph-of-thoughts](https://github.com/spcl/graph-of-thoughts) repository (© 2023 ETH Zurich). For more details, refer to the [license file](dataset/license.txt).
+They are copied from the [graph-of-thoughts](https://github.com/spcl/graph-of-thoughts) repository (© 2023 ETH Zurich). For more details, refer to the [license file](dataset/LICENSE.txt).
 
 ## Executions
 
