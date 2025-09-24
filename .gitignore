@@ -175,6 +175,8 @@ cython_debug/
 
 examples/hotpotqa/dataset/HotpotQA/*
 
+**/*.sqlite3
+
 graphs/*
 .DS_Store
 
