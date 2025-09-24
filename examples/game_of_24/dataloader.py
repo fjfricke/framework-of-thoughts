@@ -5,13 +5,13 @@ from pathlib import Path
 
 class Split(Enum):
     TRAIN = "training"
-    VALIDATION = "validation"
+    TEST = "testing"
 
 class GameOf24Dataloader(Iterator):
     def __init__(self, execution_mode: Split):
         self.df = pd.read_parquet(Path(__file__).parent / "dataset" / "train-00000-of-00001.parquet")
         self.df = self.df.sort_values("mean_time", ascending=True).reset_index(drop=True)
-        if execution_mode == Split.VALIDATION:
+        if execution_mode == Split.TEST:
             self.df = self.df.iloc[901:1001].reset_index(drop=True)
         elif execution_mode == Split.TRAIN:
             self.df = pd.concat([self.df.iloc[801:901], self.df.iloc[1001:1101]], ignore_index=True)
@@ -36,5 +36,5 @@ class GameOf24Dataloader(Iterator):
         return item
 
 if __name__ == "__main__":
-    dataloader = GameOf24Dataloader(execution_mode=Split.VALIDATION)
+    dataloader = GameOf24Dataloader(execution_mode=Split.TEST)
     print(dataloader[0])

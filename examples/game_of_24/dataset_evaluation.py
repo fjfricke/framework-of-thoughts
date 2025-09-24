@@ -88,5 +88,5 @@ def run_dataset_evaluation(original_or_optimized: str, split: Split):
 
 if __name__ == "__main__":
     ORIGINAL_OR_OPTIMIZED = "original"
-    SPLIT = Split.VALIDATION
+    SPLIT = Split.TEST
     run_dataset_evaluation(ORIGINAL_OR_OPTIMIZED, SPLIT)

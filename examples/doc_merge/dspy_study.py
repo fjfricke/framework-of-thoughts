@@ -62,7 +62,7 @@ train_dataloader = lambda: DocMergeDataloader(
     seed=42,
 )
 eval_dataloader = lambda: DocMergeDataloader(
-    execution_mode=Split.VALIDATION,
+    execution_mode=Split.TEST,
     dataset_path=Path(__file__).parent / "dataset" / "documents.csv",
     split=0.5,
     seed=42,

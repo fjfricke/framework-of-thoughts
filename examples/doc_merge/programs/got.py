@@ -1,10 +1,4 @@
 """
-GoT (Graph‑of‑Thoughts) controller for the sorting task using
-`llm_graph_optimizer`.
-
-Pipeline
---------
-
 1. Merge the 4 NDAs into a single one 5 times; Score each attempt and keep the best 3
 2. Aggregate the merge attempts into a single one 5 times; Score each aggregation attempt and keep the overall best attempt (including Step 1)
 3. Improve the merged NDA 10 times; Score each and keep the best
@@ -206,8 +200,6 @@ def got_controller(
     graph.add_edge(Edge(keep_best_n_node, end_node, "retention", "retentions"))
     graph.add_edge(Edge(keep_best_n_node, end_node, "f1_score", "f1_scores"))
 
-    # graph.snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
-
     return Controller(
         graph_of_operations=graph,
         scheduler=Scheduler.BFS,
@@ -242,7 +234,7 @@ if __name__ == "__main__":
     # Example of very short NDAs for mock testing
     dataloader = DocMergeDataloader(
         dataset_path=Path(__file__).parent.parent / "dataset" / "documents.csv",
-        execution_mode=Split.VALIDATION
+        execution_mode=Split.TEST
     )
     short_ndas = next(dataloader)[0]
 

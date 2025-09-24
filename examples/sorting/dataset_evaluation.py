@@ -83,5 +83,5 @@ def run_dataset_evaluation(process: str, original_or_optimized: str, split: Spli
 if __name__ == "__main__":
     PROCESS = "got"
     ORIGINAL_OR_OPTIMIZED = "optimized"  # original or optimized
-    SPLIT = Split.VALIDATION  # train or validation dataset
+    SPLIT = Split.TEST  # train or validation dataset
     run_dataset_evaluation(PROCESS, ORIGINAL_OR_OPTIMIZED, SPLIT)

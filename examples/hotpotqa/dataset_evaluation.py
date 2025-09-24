@@ -66,7 +66,7 @@ def test_dataset_evaluation(dataset: str = "hotpotqa"):
         raise ValueError(f"Dataset {dataset} not supported")
     dataloader_factory_with_split = lambda split: HotpotQADatasetLoader(execution_mode=split, dataset_path=dataset_path, split=0.5, seed=42, total_size=2000)  # Loads the dataset and sets training and test split.
 
-    dataloader = lambda: dataloader_factory_with_split(Split.VALIDATION)
+    dataloader = lambda: dataloader_factory_with_split(Split.TEST)
     cache = CacheContainer.from_persistent_cache_file(Path(__file__).parent / "output" / "cache.pkl", skip_on_file_not_found=True, load_as_virtual_persistent_cache=True)
     model = "gpt-4.1-mini"
     llm = OpenAIChatWithLogprobs(

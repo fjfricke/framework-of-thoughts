@@ -124,5 +124,5 @@ def run_dataset_evaluation(dspy_or_optuna: str, original_or_optimized: str, spli
 if __name__ == "__main__":
     ORIGINAL_OR_OPTIMIZED = "optimized"
     DSPY_OR_OPTUNA = "dspy"
-    SPLIT = Split.VALIDATION
+    SPLIT = Split.TEST
     run_dataset_evaluation(DSPY_OR_OPTUNA, ORIGINAL_OR_OPTIMIZED, SPLIT)
