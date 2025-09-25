@@ -58,11 +58,12 @@ poetry install --all-extras
 
 ## Usage
 
-Explore the `examples` directory for modelling Tree-of-Thought on the Sorting Problem and Game of 24, ProbTree and Graph-of-Thought on the NDA task.
+Explore the `examples` directory for modelling Tree of Thoughts (ToT) on the Sorting Problem and Game of 24, ProbTree and Graph of Thoughts (GoT) on the NDA task.
+Instructions to run the examples can be seen in the respective README files in the directory for each example.
 
 A mock example called "test" is also provided to show how to use the library using Self-Consistency prompting on simple math problems.
 
-A tutorial is provided under `examples/test/tutorial.ipynb` to show how to use the library for modelling and optimizing execution graphs. I recommend checking that out to get started. You can find a snapshot html version at `examples/test/tutorial_snapshot.html`.
+A tutorial is provided under `examples/test/tutorial.ipynb` to show how to use the library for modelling and optimizing execution graphs. We recommend checking that out to get started. You can find a snapshot html version at `examples/test/tutorial_snapshot.html`.
 
 ## Features
 
