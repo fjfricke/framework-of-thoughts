@@ -58,7 +58,7 @@ poetry install --all-extras
 
 ## Usage
 
-Explore the `examples` directory for modelling Tree of Thoughts (ToT) on the Sorting Problem and Game of 24, ProbTree and Graph of Thoughts (GoT) on the NDA task.
+Explore the `examples` directory for modelling Tree of Thoughts (ToT) and Graph of Thoughts (GoT) on the Sorting Problem, ToT on Game of 24, GoT on the Document Merging problem, and ProbTree on the HotpotQA and MuSiQue datasets.
 Instructions to run the examples can be seen in the respective README files in the directory for each example.
 
 A mock example called "test" is also provided to show how to use the library using Self-Consistency prompting on simple math problems.
