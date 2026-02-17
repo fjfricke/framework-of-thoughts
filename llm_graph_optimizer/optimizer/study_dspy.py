@@ -26,9 +26,7 @@ from llm_graph_optimizer.operations.llm_operations.dspy.shared_prompt_llm_operat
     SharedPromptLLMOperation as SP,
 )
 
-
-# ----------------------------------------------------------------------
-# helper – run async in sync code (Jupyter-safe)
+# helper – run async in sync code (Jupyter-safe) as DSPy is not async-friendly
 def _run(coro):
     try:
         return asyncio.run(coro)
@@ -39,25 +37,22 @@ def _run(coro):
             return loop.run_until_complete(coro)
         raise
 
-
-# ----------------------------------------------------------------------
 class DSPyPromptStudy:
     """
-    Search for better *instruction / prefix* prompts with DSPy
-    (CoPro-style) but evaluate each candidate with your DatasetEvaluator.
+    Search for better instruction and prefix prompts with DSPy
+    (CoPro) but evaluate each candidate with your DatasetEvaluator.
 
-    One group_id  ➜  one prompt to optimise.
+    One group_id -> one prompt to optimise.
     """
 
-    # ------------------------------------------------------------------
     def __init__(
         self,
         *,
-        # evaluation side ------------------------------------------------
+        # evaluation side
         dataset_evaluator: DatasetEvaluator,
         metrics: Sequence[ScoreParameter],
         max_concurrent_eval: int = 4,
-        # prompt-generation side ----------------------------------------
+        # prompt-generation side
         group_id: str,
         seed_instruction: str = '',
         seed_prefix: str = '',
@@ -66,7 +61,7 @@ class DSPyPromptStudy:
         depth: int = 4,                      # how many rounds
         keep_top: int = 10,                  # history size
         temperature: float = 1.4,
-        # measurement logging -------------------------------------------
+        # measurement logging
         study_measurement: StudyMeasurement | None = None,
         save_history_dir: pathlib.Path | None = None,
     ):
@@ -95,7 +90,6 @@ class DSPyPromptStudy:
             self.save_history_dir.mkdir(parents=True, exist_ok=True)
         self.dataset_evaluator.controller_factory()  # register SharedPromptLLMOperation
 
-    # ------------------------------------------------------------------
     def _generate_candidates(self) -> List[Tuple[str, str]]:
         """Use DSPy to propose a batch of new (instruction,prefix) pairs."""
         if self.seed_instruction == '' and self.seed_prefix == '':
@@ -118,7 +112,7 @@ class DSPyPromptStudy:
             else:  # subsequent rounds
                 # turn history into CoPro-style “attempted_instructions”
                 attempts = []
-                # best→worst
+                # best -> worst
                 for i, (ins, pref, score) in enumerate(
                     sorted(self.history, key=lambda x: x[2], reverse=True), 1
                 ):
@@ -140,12 +134,11 @@ class DSPyPromptStudy:
 
         return list(zip(instrs, prefs))
 
-    # ------------------------------------------------------------------
     def _evaluate_prompt(
         self, instruction: str, prefix: str
     ) -> Tuple[Dict[ScoreParameter, float], float]:
         """Evaluate a single candidate on the whole dataset."""
-        # --- patch registry *only for this evaluation* ---------------
+        # patch registry only for this evaluation
         pred = SP._registry[self.group_id]
         sig = pred.signature.with_instructions(instruction)
         last_key = list(sig.fields.keys())[-1]
@@ -158,7 +151,7 @@ class DSPyPromptStudy:
             )
         )
         # DatasetEvaluator returns {ScoreParameter: float}
-        # choose optimisation target – here the *first* metric
+        # choose optimisation target – here the FIRST metric
         obj_score = scores[self.metrics[0]]
 
         if self.study_measurement:
@@ -168,7 +161,6 @@ class DSPyPromptStudy:
 
         return scores, obj_score
 
-    # ------------------------------------------------------------------
     def run(self):
         for round_idx in range(self.depth):
             print(f"\n◎ round {round_idx+1}/{self.depth}")

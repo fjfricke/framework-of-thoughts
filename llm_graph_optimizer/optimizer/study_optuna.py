@@ -77,6 +77,14 @@ class Study:
             controller_factory = trial_controller_factory(trial)
             self.dataset_evaluator.set_controller_factory(controller_factory)
             scores = self._run_dataset_evaluator_async()
+
+            # expose all aggregated scores to optuna via user_attrs if possible
+            for sp, val in scores.items():
+                try:
+                    trial.set_user_attr(sp.name, val)
+                except Exception:
+                    pass
+
             if self.study_measurement:
                 self.study_measurement.add_dataset_measurement(self.dataset_evaluator.dataset_measurement)
             if self.save_study_measurement_after_each_trial:

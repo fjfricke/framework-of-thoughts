@@ -6,6 +6,7 @@ import numpy as np
 
 from examples.doc_merge.dataloader import DocMergeDataloader, Split
 from examples.doc_merge.programs.got import got_controller
+from examples.doc_merge.programs.prompter_parser import improve_prompt_dspy
 from examples.openai_pricing import OPENAI_PRICING
 from llm_graph_optimizer.graph_of_operations.types import ReasoningState
 from llm_graph_optimizer.language_models.cache.cache import CacheContainer
@@ -17,7 +18,6 @@ from llm_graph_optimizer.measurement.process_measurement import ProcessMeasureme
 from llm_graph_optimizer.optimizer.dataset_evaluator import DatasetEvaluator
 
 dataset_path = Path(__file__).parent / "dataset" / "documents.csv"
-dataloader_factory = lambda: DocMergeDataloader(dataset_path=dataset_path, execution_mode=Split.VALIDATION, split=0.5, seed=42)
 
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -34,7 +34,7 @@ retention_score = ScoreParameter(
 f1_score = ScoreParameter(
     name="f1_score",
     confidence_interval_width=0.95,
-    acceptable_ci_width=0.05
+    # acceptable_ci_width=0.05
 )
 
 parameters = DatasetEvaluatorParameters(
@@ -50,7 +50,8 @@ def calculate_score(reasoning_state: ReasoningState, measurement: ProcessMeasure
     }
 
 
-if __name__ == "__main__":
+def run_dataset_evaluation(dspy_or_optuna: str, original_or_optimized: str, split: Split):
+    dataloader_factory = lambda: DocMergeDataloader(dataset_path=dataset_path, execution_mode=split, split=0.5, seed=42)
     cache = CacheContainer.from_persistent_cache_file(
         file_path=Path(__file__).parent / "output" / "cache.pkl",
         load_as_virtual_persistent_cache=True,
@@ -72,15 +73,40 @@ if __name__ == "__main__":
     )
     llm_gen = llm_generator(1)
     llm_score = llm_generator(0)
+
+    num_merges = 4
+    keep_best_merges = 3
+    num_aggregations = 5
+    num_improvements = 10
+    optimized_improve_prompter = None
+    if original_or_optimized == "optimized":
+        if dspy_or_optuna == "optuna":
+            num_merges = 4
+            keep_best_merges = 3
+            num_aggregations = 4
+            num_improvements = 9
+        elif dspy_or_optuna == "dspy":
+            optimized_instruction = "Generate a succinct, informative, and harmonized summary of the provided non-disclosure agreements (NDAs) by meticulously blending insights from both the accompanying summaries and the original documents. Your output should encapsulate critical details while enhancing clarity and legibility, minimizing any excessive language. Highlight and comport essential legal terms appropriately, ensuring the intent and key clauses remain conspicuous. Finalize your summary formatted within the designated <Merged> and </Merged> tags aimed at promoting swift understanding and seamless usage of the key information presented."
+            tag = "<Merged>"
+            def improve_prompt_dspy_with_optimized_instruction(summaries, docs):
+                return improve_prompt_dspy(summaries, docs, optimized_instruction, tag)
+            optimized_improve_prompter = improve_prompt_dspy_with_optimized_instruction
+        else:
+            raise ValueError("Invalid dspy or optuna mode")
+    elif original_or_optimized == "original":
+        pass
+    else:
+        raise ValueError("Invalid original or optimized mode")
     
     controller_factory = lambda: got_controller(
         llm_gen=llm_gen,
         llm_score=llm_score,
-        num_merges=4,
-        keep_best_merges=3,
-        num_aggregations=5,
-        num_improvements=10,
+        num_merges=num_merges,
+        keep_best_merges=keep_best_merges,
+        num_aggregations=num_aggregations,
+        num_improvements=num_improvements,
         max_concurrent=1,
+        optimized_improve_prompter=optimized_improve_prompter
     )
     dataset_evaluator = DatasetEvaluator(
         controller_factory=controller_factory,
@@ -94,3 +120,9 @@ if __name__ == "__main__":
     dataset_measurement.to_excel(Path(__file__).parent / "output" / "dataset_measurement.xlsx", maps_for_measurements={"mean": np.mean, "sum": np.sum})
     dataset_measurement.save(Path(__file__).parent / "output" / "dataset_measurement.pkl")
     print(scores)
+
+if __name__ == "__main__":
+    ORIGINAL_OR_OPTIMIZED = "optimized"
+    DSPY_OR_OPTUNA = "dspy"
+    SPLIT = Split.TEST
+    run_dataset_evaluation(DSPY_OR_OPTUNA, ORIGINAL_OR_OPTIMIZED, SPLIT)

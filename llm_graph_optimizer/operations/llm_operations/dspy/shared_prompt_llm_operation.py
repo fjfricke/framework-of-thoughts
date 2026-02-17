@@ -8,10 +8,9 @@ from llm_graph_optimizer.operations.llm_operations.base_llm_operation import (
 from typing import Any, Dict, Optional, Type
 from llm_graph_optimizer.graph_of_operations.types import ReasoningStateType
 from llm_graph_optimizer.operations.llm_operations.dspy.meta_bridge import OperationModuleMeta
-from llm_graph_optimizer.operations.llm_operations.llm_operation_with_logprobs import LLMOperationWithLogprobs
 
 
-class SharedPromptLLMOperation(dspy.Module, LLMOperationWithLogprobs, metaclass=OperationModuleMeta):
+class SharedPromptLLMOperation(dspy.Module, BaseLLMOperation, metaclass=OperationModuleMeta):
     """
     One `group_id`  ➔  one shared `dspy.Predict` prompt.
 
@@ -40,7 +39,7 @@ class SharedPromptLLMOperation(dspy.Module, LLMOperationWithLogprobs, metaclass=
         signature: dspy.Signature | str,
         input_types: ReasoningStateType,
         output_types: ReasoningStateType,
-        operation_type: Type[BaseLLMOperation | LLMOperationWithLogprobs] = BaseLLMOperation,
+        operation_type: Type[BaseLLMOperation] = BaseLLMOperation,
         # --- BaseLLMOperation standard args ---------------------------
         name: Optional[str] = None,
         cache_seed=None,

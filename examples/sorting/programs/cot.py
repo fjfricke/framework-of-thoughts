@@ -1,4 +1,3 @@
-# Initialize the language model
 from llm_graph_optimizer.controller.controller import Controller
 from llm_graph_optimizer.graph_of_operations.graph_of_operations import GraphOfOperations
 from llm_graph_optimizer.measurement.process_measurement import ProcessMeasurement
@@ -14,7 +13,7 @@ from llm_graph_optimizer.graph_of_operations.types import Edge
 
 def cot_controller() -> Controller:
 
-    llm = OpenAIChat(model="gpt-4o")
+    llm = OpenAIChat(model="gpt-3.5-turbo")
 
     # Initialize the start node
     start_node = Start(
@@ -30,7 +29,6 @@ def cot_controller() -> Controller:
     )
 
     # Initialize the score operation and node
-
     score_node = ScoreOperation(
         input_types={"output": list[int], "expected_output": list[int]},
         output_type=int,
@@ -42,8 +40,7 @@ def cot_controller() -> Controller:
         input_types={"score": int, "output": list[int], "expected_output": list[int]}
     )
 
-    # Initialize the graph of operations for IO
-
+    # Initialize the graph of operations for CoT
     cot_graph = GraphOfOperations()
     cot_graph.add_node(start_node)
     cot_graph.add_node(generate_cot_node)

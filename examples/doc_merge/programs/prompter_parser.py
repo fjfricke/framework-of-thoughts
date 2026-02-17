@@ -107,6 +107,46 @@ Here is the summary NDA <S>:
 </S>
 """
 
+def improve_prompt_dspy(
+    summaries: list[str],
+    docs: list[str],
+    optimized_instruction: str,
+    tag: str,
+) -> list[dict[str, str]]:
+    import json
+
+    system_message = (
+        "Your input fields are:\n"
+        "1. `summaries` (list[str]): The summaries of the NDAs to improve\n"
+        "2. `docs` (list[str]): The original NDAs\n"
+        "Your output fields are:\n"
+        "1. `merged` (str): The improved summary of the NDAs\n"
+        "All interactions will be structured in the following way, with the appropriate values filled in.\n\n"
+        "[[ ## summaries ## ]]\n"
+        "{summaries}\n\n"
+        "[[ ## docs ## ]]\n"
+        "{docs}\n\n"
+        "[[ ## merged ## ]]\n"
+        "{merged}\n\n"
+        "[[ ## completed ## ]]\n"
+        f"In adhering to this structure, your objective is:\n        {optimized_instruction} "
+        f"Ensure to format the output between {tag} and {tag.replace('<','</')} tags."
+    )
+
+    user_message = (
+        "[[ ## summaries ## ]]\n"
+        f"{json.dumps(summaries, ensure_ascii=False)}\n\n"
+        "[[ ## docs ## ]]\n"
+        f"{json.dumps(docs, ensure_ascii=False)}\n\n"
+        "Respond with the corresponding output fields, starting with the field `[[ ## merged ## ]]`, "
+        "and then ending with the marker for `[[ ## completed ## ]]`."
+    )
+
+    return [
+        {"role": "system", "content": system_message},
+        {"role": "user", "content": user_message},
+    ]
+
 def validation_parser(text: str) -> ValidationOutput:
     valid = text.lower().strip() in ["true", "yes", "valid"]
     return {"valid": valid}

@@ -6,7 +6,7 @@ from typing import Iterator
 
 class Split(Enum):
     TRAIN = "training"
-    VALIDATION = "validation"
+    TEST = "testing"
 
 class HotpotQADatasetLoader(Iterator):
     def __init__(self, execution_mode: Split, dataset_path: Path, split: float = 0.8, seed: int = 42, total_size: int = None):
@@ -18,14 +18,14 @@ class HotpotQADatasetLoader(Iterator):
         random_generator.shuffle(data)
         if not (0.0 < split <= 1.0):
             raise ValueError("Split must be a float between 0 and 1.")
-        if execution_mode not in [Split.TRAIN, Split.VALIDATION]:
-            raise ValueError("Invalid execution mode. Choose 'training' or 'validation'.")
+        if execution_mode not in [Split.TRAIN, Split.TEST]:
+            raise ValueError("Invalid execution mode. Choose 'training' or 'testing'.")
         if total_size is not None:
             data = data[:total_size]
         split_index = int(len(data) * split)
         if execution_mode == Split.TRAIN:
             self.data = data[:split_index]
-        else:  # validation
+        else:  # testing
             self.data = data[split_index:]
         
         self.execution_mode = execution_mode
@@ -51,6 +51,6 @@ class HotpotQADatasetLoader(Iterator):
 if __name__ == "__main__":
     # dataset_path = Path.cwd().resolve() / "examples" / "hotpotqa" / "dataset" / "HotpotQA" / "hotpot_dev_fullwiki_v1.json"
     dataset_path = Path.cwd().resolve() / "examples" / "hotpotqa" / "dataset" / "HotpotQA" / "musique_full_v1.0_dev.jsonl"
-    dataloader = HotpotQADatasetLoader(dataset_path=dataset_path, execution_mode=Split.VALIDATION, split=0.5, seed=42, total_size=2000)
+    dataloader = HotpotQADatasetLoader(dataset_path=dataset_path, execution_mode=Split.TEST, split=0.5, seed=42, total_size=2000)
     for i, batch in enumerate(dataloader):
         print(i, batch)

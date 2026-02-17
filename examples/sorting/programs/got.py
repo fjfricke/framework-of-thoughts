@@ -1,18 +1,3 @@
-"""
-GoT (Graph‑of‑Thoughts) controller for the sorting task using
-`llm_graph_optimizer`.
-
-Pipeline
---------
-1. Split 64‑element list into 4×16 slices.
-2. Sort each slice in parallel; keep the best candidate per slice.
-3. Merge neighbouring slices → halves → full list, again keeping the best.
-4. Optional global repair rounds on the whole list.
-
-`cache_seed` is assigned deterministically: parallel branches that receive the
-*same* inputs get seeds 0…N‑1 so they create unique cache keys, while later
-stages restart their numbering because their inputs differ.
-"""
 from __future__ import annotations
 
 from typing import List
@@ -41,12 +26,7 @@ from examples.sorting.programs.prompter_parser import (
     filter_function,
 )
 
-# logging.basicConfig(level=logging.INFO)
-
-# ---------------------------------------------------------------------------
 # Scoring helpers
-# ---------------------------------------------------------------------------
-
 def _score_sublist(output: List[int], unsorted_sublist: List[int]) -> int:
     return scoring_function(output, sorted(unsorted_sublist))
 
@@ -54,10 +34,8 @@ def _score_sublist(output: List[int], unsorted_sublist: List[int]) -> int:
 def _score_merge(output: List[int], input1: List[int], input2: List[int]) -> int:
     return scoring_function(output, sorted(input1 + input2))
 
-# ---------------------------------------------------------------------------
-# Graph builder
-# ---------------------------------------------------------------------------
 
+# Graph builder
 def got_controller(
     llm: AbstractLanguageModel,
     num_sort_branches: int = 5,
@@ -66,7 +44,7 @@ def got_controller(
     max_concurrent: int = 5,
 ) -> Controller:
 
-    # Node factories -------------------------------------------------------
+    # Node factories
     def split_op() -> BaseLLMOperation:
         return BaseLLMOperation(
             llm=llm,
@@ -140,18 +118,18 @@ def got_controller(
             filter_function=filter_function,
         )
 
-    # Graph ----------------------------------------------------------------
+    # Graph
     graph = GraphOfOperations()
     start = Start(input_types={"input_list": List[int], "expected_output": List[int]})
     end = End(input_types={"output": List[int], "score": int, "expected_output": List[int]})
     graph.add_node(start)
 
-    # Split ---------------------------------------------------------------
+    # Split
     split = split_op()
     graph.add_node(split)
     graph.add_edge(Edge(start, split, "input_list", "input_list"))
 
-    # Sort slices ---------------------------------------------------------
+    # Sort slices
     slice_best: List[FilterOperation] = []
     for idx in range(1, 9):
         keep_best = filter_op()
@@ -169,7 +147,7 @@ def got_controller(
             graph.add_edge(Edge(scorer, keep_best, "score", "scores"), order=br)
             graph.add_edge(Edge(sorter, keep_best, "output", "outputs"), order=br)
 
-    # Merge neighbouring pairs -------------------------------------------
+    # Merge neighbouring pairs
     pair_best: List[FilterOperation] = []
     for (pair_idx, (a, b)) in enumerate([(1, 2), (3, 4), (5, 6), (7, 8)], start=1):
         keep_best = filter_op()
@@ -189,7 +167,7 @@ def got_controller(
             graph.add_edge(Edge(scorer, keep_best, "score", "scores"), order=br)
             graph.add_edge(Edge(merger, keep_best, "output", "outputs"), order=br)
 
-    # Merge halves ---------------------------------------------------------
+    # Merge halves
     half_best: List[FilterOperation] = []
     for (idx, (a, b)) in enumerate([(1, 2), (3, 4)], start=1):
         keep_best = filter_op()
@@ -209,7 +187,7 @@ def got_controller(
             graph.add_edge(Edge(scorer, keep_best, "score", "scores"), order=br)
             graph.add_edge(Edge(merger, keep_best, "output", "outputs"), order=br)
 
-    # Final merge ----------------------------------------------------------
+    # Final merge
     final_keep = filter_op()
     graph.add_node(final_keep)
     left, right = half_best
@@ -226,7 +204,7 @@ def got_controller(
         graph.add_edge(Edge(scorer, final_keep, "score", "scores"), order=br)
         graph.add_edge(Edge(merger, final_keep, "output", "outputs"), order=br)
 
-    # Global repair rounds --------------------------------------------------
+    # Global repair rounds
     last_best_node: FilterOperation | BaseLLMOperation = final_keep
     for r in range(global_improvement_rounds):
         repair = improve_op(r)
@@ -245,17 +223,12 @@ def got_controller(
         graph.add_edge(Edge(last_best_node, keep_best, "score", "scores"), order=-2)
         last_best_node = keep_best
 
-    # Final score / END -----------------------------------------------------
-    # final_score = score_final()
-    # graph.add_node(final_score)
-    # graph.add_edge(Edge(last_best_node, final_score, "output", "output"))
-    # graph.add_edge(Edge(start, final_score, "expected_output", "expected_output"))
+    # Final score
     graph.add_node(end)
     graph.add_edge(Edge(last_best_node, end, "output", "output"))
     graph.add_edge(Edge(last_best_node, end, "score", "score"))
     graph.add_edge(Edge(start, end, "expected_output", "expected_output"))
 
-    # graph.snapshot.visualize(show_multiedges=False, show_values=True, show_keys=True, show_state=True)
     measurement = ProcessMeasurement(graph_of_operations=graph)
     return Controller(graph_of_operations=graph, scheduler=Scheduler.BFS, max_concurrent=max_concurrent, process_measurement=measurement)
 

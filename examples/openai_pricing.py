@@ -1,4 +1,4 @@
-# prices of 22.04.2025 with TPM/RPM merged when available for tier 3
+# prices of 22.04.2025 with TPM/RPM merged when available for tier 3. Some TPM and RPM were updated in Sept 2025.
 
 OPENAI_PRICING = {
     "gpt-4.1": {
@@ -45,8 +45,8 @@ OPENAI_PRICING = {
         "request_price_per_token": 2.5 / 1_000_000,
         "cached_input_price_per_token": 1.25 / 1_000_000,
         "response_price_per_token": 10.0 / 1_000_000,
-        "TPM": 800_000,
-        "RPM": 5_000,
+        "TPM": 30_000_000,
+        "RPM": 10_000,
     },
     "gpt-4o-audio-preview": {
         "request_price_per_token": 2.5 / 1_000_000,
@@ -63,8 +63,8 @@ OPENAI_PRICING = {
         "request_price_per_token": 0.15 / 1_000_000,
         "cached_input_price_per_token": 0.075 / 1_000_000,
         "response_price_per_token": 0.6 / 1_000_000,
-        "TPM": 4_000_000,
-        "RPM": 5_000,
+        "TPM": 150_000_000,
+        "RPM": 30_000,
     },
     "gpt-4o-mini-audio-preview": {
         "request_price_per_token": 0.15 / 1_000_000,

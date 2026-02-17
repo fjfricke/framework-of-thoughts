@@ -1,6 +1,7 @@
 
 import logging
 from pathlib import Path
+import asyncio
 
 import numpy as np
 
@@ -21,7 +22,6 @@ from llm_graph_optimizer.optimizer.dataset_evaluator import DatasetEvaluator
 dataset_path = Path(__file__).parent / "dataset" / "sorting_128.csv"
 
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
-# logging.getLogger('llm_graph_optimizer.controller.controller').setLevel(logging.DEBUG)
 
 accuracy_score = ScoreParameter(
     name="mistakes",
@@ -37,12 +37,10 @@ def calculate_score(reasoning_state: ReasoningState, measurement: ProcessMeasure
     return {accuracy_score: reasoning_state["score"]}
 
 
+def run_dataset_evaluation(process: str, original_or_optimized: str, split: Split):
 
-def run_dataset_evaluation(process: str, original_or_optimized: str):
-
-    import asyncio
     cache = CacheContainer.from_persistent_cache_file(Path(__file__).parent / "output" / "dataset_cache.pkl", load_as_virtual_persistent_cache=True, skip_on_file_not_found=False)
-    dataloader_factory = lambda: SortingDataloader(Split.VALIDATION, dataset_path, split=0.5, seed=42)  # noqa: F821
+    dataloader_factory = lambda: SortingDataloader(split, dataset_path, split=0.5, seed=42)  # noqa: F821
     model = "gpt-3.5-turbo"
     llm = OpenAIChat(model=model,
                      config=Config(temperature=1.0),
@@ -58,12 +56,16 @@ def run_dataset_evaluation(process: str, original_or_optimized: str):
         if original_or_optimized == "original":
             controller_factory = lambda: tot_controller(llm=llm, num_branches=20, improvement_levels=4, max_concurrent=1)
         elif original_or_optimized == "optimized":
-            controller_factory = lambda: tot_controller(llm=llm, num_branches=6, improvement_levels=5, max_concurrent=1)
+            controller_factory = lambda: tot_controller(llm=llm, num_branches=14, improvement_levels=6, max_concurrent=1)
+        else:
+            raise ValueError("Invalid original or optimized mode")
     elif process == "got":
         if original_or_optimized == "original":
             controller_factory = lambda: got_controller(llm=llm, num_sort_branches=5, num_merge_branches=10, global_improvement_rounds=1, max_concurrent=1)
         elif original_or_optimized == "optimized":
-            controller_factory = lambda: got_controller(llm=llm, num_sort_branches=1, num_merge_branches=15, global_improvement_rounds=2, max_concurrent=1)
+            controller_factory = lambda: got_controller(llm=llm, num_sort_branches=2, num_merge_branches=13, global_improvement_rounds=2, max_concurrent=1)
+        else:
+            raise ValueError("Invalid original or optimized mode")
     dataset_evaluator = DatasetEvaluator(
         controller_factory=controller_factory,
         calculate_score=calculate_score,
@@ -81,4 +83,5 @@ def run_dataset_evaluation(process: str, original_or_optimized: str):
 if __name__ == "__main__":
     PROCESS = "got"
     ORIGINAL_OR_OPTIMIZED = "optimized"  # original or optimized
-    run_dataset_evaluation(PROCESS, ORIGINAL_OR_OPTIMIZED)
+    SPLIT = Split.TEST  # train or validation dataset
+    run_dataset_evaluation(PROCESS, ORIGINAL_OR_OPTIMIZED, SPLIT)

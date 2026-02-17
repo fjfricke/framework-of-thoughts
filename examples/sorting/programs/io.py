@@ -14,7 +14,7 @@ from llm_graph_optimizer.graph_of_operations.types import Edge
 
 def io_controller() -> Controller:
 
-    llm = OpenAIChat(model="gpt-4o")
+    llm = OpenAIChat(model="gpt-3.5-turbo")
 
     # Initialize the start node
     start_node = Start(
@@ -30,9 +30,6 @@ def io_controller() -> Controller:
     )
 
     # Initialize the score operation and node
-
-
-
     score_node = ScoreOperation(
         input_types={"output": list[int], "expected_output": list[int]},
         output_type=int,
@@ -45,7 +42,6 @@ def io_controller() -> Controller:
     )
 
     # Initialize the graph of operations for IO
-
     io_graph = GraphOfOperations()
     io_graph.add_node(start_node)
     io_graph.add_node(generate_node)

@@ -31,7 +31,7 @@ The project provides several optional features that can be installed using `poet
 
 - **examples**: Includes dependencies needed to run the examples in the `examples` directory. If you want to replicate the studies, please also install the `optimizer` extra.
 - **dataset**: Adds support to run experiments on entire datasets.
-- **optimizer**: `dataset` + installs `optuna` and `optuna-dashboard` for hyperparameter optimization.
+- **optimizer**: `dataset` + installs `optuna` and `optuna-dashboard` for hyperparameter optimization, as well as `dspy`.
 - **dev**: Installs development tools like `ruff` and `pre-commit` for linting and code formatting if you want to contribute to the project. :)
 
 ### Installing Extras
@@ -58,17 +58,18 @@ poetry install --all-extras
 
 ## Usage
 
-Explore the `examples` directory for modelling Tree-of-Thought (ToT) on the Sorting Problem, and ProbTree and variations thereof on the HotpotQA dataset.
+Explore the `examples` directory for modelling Tree of Thoughts (ToT) and Graph of Thoughts (GoT) on the Sorting Problem, ToT on Game of 24, GoT on the Document Merging problem, and ProbTree on the HotpotQA and MuSiQue datasets.
+Instructions to run the examples can be seen in the respective README files in the directory for each example.
 
 A mock example called "test" is also provided to show how to use the library using Self-Consistency prompting on simple math problems.
 
-A tutorial is provided under `examples/test/tutorial.ipynb` to show how to use the library for modelling and optimizing execution graphs. I recommend checking that out to get started. You can find a snapshot html version [here](https://fjfricke.github.io/llm-graph-optimizer-tutorial) (might not be up-to-date) or at `examples/test/tutorial_snapshot.html`.
+A tutorial is provided under `examples/test/tutorial.ipynb` to show how to use the library for modelling and optimizing execution graphs. We recommend checking that out to get started. You can find a snapshot html version at `examples/test/tutorial_snapshot.html`.
 
 ## Features
 
-- Modelling of graph-based prompting strategies with support for various graph operations and measurements
-- Integration with `optuna` for optimization of hyperparameters
-- Example scripts and datasets to reproduce the results in the research handin.
+- Modelling of graph-based prompting strategies with support for various graph operations and measurements.
+- Integration with `optuna` for optimization of hyperparameters. Integration with `dspy` for optimization of prompts. Note that the latter is not fully supported and only a COPRO-style prompt optimization on a single prompt is implemented so far.
+- Example scripts and datasets to reproduce the results in the paper.
 
 ## Setting the OpenAI API key
 

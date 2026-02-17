@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from llm_graph_optimizer.operations.abstract_operation import AbstractOperation
 
 
-class Predecessors(BaseGraph):
+class Ancestors(BaseGraph):
     """
     Represents the predecessors of a node in the graph.
     This is a subgraph containing all nodes and edges that precede a given node and the node itself.
@@ -16,63 +16,69 @@ class Predecessors(BaseGraph):
 
     def __init__(self, original_graph: BaseGraph, subgraph: MultiDiGraph):
         """
-        Initialize the Predecessors subgraph. Called from GraphOfOperations.partitions.
+        Initialize the Ancestors subgraph. Called from GraphOfOperations.partitions.
 
         :param original_graph: The original graph from which this subgraph is derived.
-        :param subgraph: The subgraph containing the predecessors.
+        :param subgraph: The subgraph containing the ancestors.
         """
         super().__init__(subgraph)
         self.original_graph = original_graph
 
     def add_node(self, node: "AbstractOperation"):
         """
-        Adding nodes is forbidden in Predecessors.
+        Adding nodes is forbidden in Ancestors.
 
         :param node: The node to add (not allowed).
         :raises PermissionError: Always raised when this method is called.
         """
-        raise PermissionError("Adding nodes is forbidden in Predecessors.")
+        raise PermissionError("Adding nodes is forbidden in Ancestors.")
 
     def add_edge(self, edge: Edge):
         """
-        Adding edges is forbidden in Predecessors.
+        Adding edges is forbidden in Ancestors.
 
         :param edge: The edge to add (not allowed).
         :raises PermissionError: Always raised when this method is called.
         """
-        raise PermissionError("Adding edges is forbidden in Predecessors.")
+        raise PermissionError("Adding edges is forbidden in Ancestors.")
     
     def remove_node(self, node: "AbstractOperation"):
         """
-        Removing nodes is forbidden in Predecessors.
+        Removing nodes is forbidden in Ancestors.
 
         :param node: The node to remove (not allowed).
         :raises PermissionError: Always raised when this method is called.
         """
-        raise PermissionError("Removing nodes is forbidden in Predecessors.")
+        raise PermissionError("Removing nodes is forbidden in Ancestors.")
     
     def remove_edge(self, edge: Edge):
         """
-        Removing edges is forbidden in Predecessors.
+        Removing edges is forbidden in Ancestors.
 
         :param edge: The edge to remove (not allowed).
         :raises PermissionError: Always raised when this method is called.
         """
-        raise PermissionError("Removing edges is forbidden in Predecessors.")
+        raise PermissionError("Removing edges is forbidden in Ancestors.")
     
-    def predecessor_edges(self, node: "AbstractOperation") -> list[Edge]:
+    def predecessor_edges(self, node: "AbstractOperation", include_dependencies: bool = True) -> list[Edge]:
         """
-        Get the predecessor edges of a node in the Predecessors subgraph.
+        Get the predecessor edges of a node in the Ancestors subgraph.
 
         :param node: The node to retrieve predecessor edges for.
+        :param include_dependencies: Whether to include dependency edges.
         :return: A list of predecessor edges.
         """
-        return Edge.from_edge_view(self._graph.in_edges(node, data=True))
+        if include_dependencies:
+            return Edge.from_edge_view(self._graph.in_edges(node, data=True))
+        else:
+            all_predecessor_edges = Edge.from_edge_view(self._graph.in_edges(node, data=True))
+            all_predecessor_edges_with_from_node_key = [edge for edge in all_predecessor_edges if edge.from_node_key is not None]
+            return all_predecessor_edges_with_from_node_key
     
     @property
     def start_node(self) -> "AbstractOperation":
         """
-        Get the start node of the Predecessors subgraph.
+        Get the start node of the Ancestors subgraph.
 
         :return: The start node of the subgraph.
         """
@@ -81,19 +87,19 @@ class Predecessors(BaseGraph):
     @property
     def end_node(self) -> "AbstractOperation":
         """
-        Get the end node of the Predecessors subgraph.
+        Get the end node of the Ancestors subgraph.
 
         :return: The end node of the subgraph.
         :raises ValueError: If the subgraph does not have exactly one end node.
         """
         end_nodes = [node for node in self._graph.nodes if self._graph.out_degree(node) == 0]
         if len(end_nodes) != 1:
-            raise ValueError("Predecessor Graph must have exactly one end node with out-degree 0")
+            raise ValueError("Ancestors Graph must have exactly one end node with out-degree 0")
         return end_nodes[0]
     
     def __contains__(self, node: "AbstractOperation") -> bool:
         """
-        Check if a node exists in the Predecessors subgraph.
+        Check if a node exists in the Ancestors subgraph.
 
         :param node: The node to check.
         :return: True if the node exists in the subgraph, False otherwise.
@@ -323,25 +329,26 @@ class GraphPartitions:
     Contains the predecessors, descendants, and exclusive descendants of the node, as well as functions to move or add edges between the partitions.
     """
 
-    predecessors: Predecessors
+    ancestors: Ancestors
     descendants: Descendants
     exclusive_descendants: ExclusiveDescendants
 
-    def __init__(self, predecessors: Predecessors, descendants: Descendants, exclusive_descendants: ExclusiveDescendants):
+    def __init__(self, ancestors: Ancestors, descendants: Descendants, exclusive_descendants: ExclusiveDescendants):
         """
         Initialize the GraphPartitions. Called from GraphOfOperations.partitions.
 
-        :param predecessors: The predecessors partition.
+        :param ancestors: The ancestors partition.
         :param descendants: The descendants partition.
         :param exclusive_descendants: The exclusive descendants partition.
         """
-        self.predecessors = predecessors
+        self.ancestors = ancestors
         self.descendants = descendants
         self.exclusive_descendants = exclusive_descendants
-        self.original_graph = predecessors.original_graph
+        self.original_graph = ancestors.original_graph
+
     def move_edge_start_node(self, current_edge: Edge, new_from_node: "AbstractOperation", new_from_node_key: NodeKey):
         """
-        Move an edge within the graph partitions. Only allowed for edges from the exclusive descendants to the descendants partition. The new from_node must be in the exclusive descendants or predecessors partition.
+        Move an edge within the graph partitions. Only allowed for edges from the exclusive descendants to the descendants partition. The new from_node must be in the exclusive descendants or ancestors partition.
 
         :param current_edge: The edge to move.
         :param new_from_node: The new source node for the edge.
@@ -353,12 +360,14 @@ class GraphPartitions:
             raise ValueError(f"Edge {current_edge} does not exist in the graph.")
         if current_edge.from_node not in self.exclusive_descendants:
             raise ValueError(f"In order to move an edge, the previous from_node must be in the exclusive Descendants graph. {current_edge.from_node} is not.")
-        if new_from_node not in self.exclusive_descendants and new_from_node not in self.predecessors:
-            raise ValueError(f"In order to move an edge, the new from_node must be in the exclusive Descendants or predecessors graph. {new_from_node} is not.")
+        if new_from_node not in self.exclusive_descendants and new_from_node not in self.ancestors:
+            raise ValueError(f"In order to move an edge, the new from_node must be in the exclusive Descendants or ancestors graph. {new_from_node} is not.")
+        if current_edge.from_node == self.ancestors.end_node and (current_edge.from_node, current_edge.to_node) not in self.original_graph.dependency_edges:
+            self.original_graph._add_dependency_edge(current_edge.from_node, current_edge.to_node)
         self.original_graph._remove_edge(current_edge)
         self.original_graph._add_edge(Edge(new_from_node, current_edge.to_node, new_from_node_key, current_edge.to_node_key), order=edge_data.get("order", 0), idx=edge_data.get("idx", 0))
-        if new_from_node in self.predecessors:
-            self.predecessors.original_graph._update_new_from_predecessor_edge_values(new_from_node, current_edge.to_node, new_from_node_key)
+        if new_from_node in self.ancestors:
+            self.ancestors.original_graph._update_new_from_predecessor_edge_values(new_from_node, current_edge.to_node, new_from_node_key)
 
     def move_start_node_and_duplicate_edges(self, current_edge: Edge, new_from_nodes: list["AbstractOperation"], new_from_node_keys: list[NodeKey], orders: list[int] = None):
         """
@@ -373,31 +382,31 @@ class GraphPartitions:
             raise ValueError(f"Edge {current_edge} does not exist in the graph.")
         if current_edge.from_node not in self.exclusive_descendants:
             raise ValueError(f"In order to move an edge, the previous from_node must be in the exclusive Descendants graph. {current_edge.from_node} is not.")
-        if any(new_from_node not in self.exclusive_descendants for new_from_node in new_from_nodes) and any(new_from_node not in self.predecessors for new_from_node in new_from_nodes):
+        if any(new_from_node not in self.exclusive_descendants for new_from_node in new_from_nodes) and any(new_from_node not in self.ancestors for new_from_node in new_from_nodes):
             raise ValueError(f"In order to move an edge, all new from_nodes must be in the exclusive Descendants or predecessors graph. At least one of {new_from_nodes} is not.")
         self.original_graph._remove_edge(current_edge)
         if orders is None:
             orders = [edge_data.get("order", 0)] * len(new_from_nodes)
         for new_from_node, new_from_node_key, order in zip(new_from_nodes, new_from_node_keys, orders):
             self.original_graph._add_edge(Edge(new_from_node, current_edge.to_node, new_from_node_key, current_edge.to_node_key), order=order, idx=edge_data.get("idx", 0))
-            if new_from_node in self.predecessors:
-                self.predecessors.original_graph._update_new_from_predecessor_edge_values(new_from_node, current_edge.to_node, new_from_node_key)
+            if new_from_node in self.ancestors:
+                self.ancestors.original_graph._update_new_from_predecessor_edge_values(new_from_node, current_edge.to_node, new_from_node_key)
 
     def add_edge(self, edge: Edge, order: int=0, idx: int=0):
         """
-        Add an edge to the graph partitions. Only allowed between the predecessors and exclusive descendants partitions. For edges inside a partition, use the function in their respective classes.
+        Add an edge to the graph partitions. Only allowed between the ancestors and exclusive descendants partitions. For edges inside a partition, use the function in their respective classes.
 
         :param edge: The edge to add.
         :param order: The order of the edge.
         :raises ValueError: If the edge is not in the appropriate partitions.
         """
-        if not (edge.from_node in self.predecessors or edge.from_node in self.exclusive_descendants):
-            raise ValueError(f"The from_node must be in the predecessors or exclusive descendants graph. {edge.from_node} is not.")
+        if not (edge.from_node in self.ancestors or edge.from_node in self.exclusive_descendants):
+            raise ValueError(f"The from_node must be in the ancestors or exclusive descendants graph. {edge.from_node} is not.")
         if edge.to_node not in self.exclusive_descendants:
             raise ValueError(f"The to_node must be in the exclusive descendants graph. {edge.to_node} is not.")
         self.original_graph._add_edge(edge, order, idx)
-        if edge.from_node in self.predecessors:
-            self.predecessors.original_graph._update_new_from_predecessor_edge_values(edge.from_node, edge.to_node, edge.from_node_key)
+        if edge.from_node in self.ancestors:
+            self.ancestors.original_graph._update_new_from_predecessor_edge_values(edge.from_node, edge.to_node, edge.from_node_key)
 
     def remove_node(self, node: "AbstractOperation"):
         """
