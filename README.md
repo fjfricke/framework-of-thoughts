@@ -86,6 +86,10 @@ llm = OpenAIChat(api_key="your_openai_api_key", ...) or
 llm_with_logprobs = OpenAIChatWithLogprobs(api_key="your_openai_api_key", ...)
 ```
 
+## Exemplary Tree of Thoughts implemented in Framework-of-Thoughts (Game of 24)
+
+![Game of 24 flowchart](./Exemplary-FoT-diagram.png)
+
 # Disclaimer
 
 For the development, Cursor, mainly with Openai GPT 4o, was used; mainly for code completion, repository structuring, refactoring, and error fixing.
